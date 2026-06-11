@@ -1,31 +1,70 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Core Study - EdTech</title>
+    <title>Core Study - Plataforma Educacional</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
-    <div class="auth-wrapper-centered">
-        <main class="auth-card-centered">
-            <img src="{{ url_for('static', filename='img/logo_core_study.png') }}" alt="Logo Core Study" class="logo">
-            
-            <h1>Bem-vindo</h1>
-            <p>Escolha uma opção abaixo para acessar a área de estudos e gestão da plataforma.</p>
-            
-            <div class="btn-block">
+
+    <main class="home-wrapper">
+        <div class="home-bg-orb orb-1"></div>
+        <div class="home-bg-orb orb-2"></div>
+        <div class="home-bg-orb orb-3"></div>
+
+        <section class="home-card home-card-fancy">
+            <div class="home-card-glow"></div>
+
+            <div class="home-logo">
+                <img src="{{ url_for('static', filename='img/logo_core_study.png') }}" alt="Logo Core Study">
+            </div>
+
+            <span class="home-badge">Plataforma Educacional</span>
+
+            <h1>Core Study</h1>
+
+            <p class="home-subtitle">
+                Organize cursos, módulos, aulas e materiais em uma plataforma simples para gestão e aprendizagem.
+            </p>
+
+            <div class="home-features">
+                <div class="home-feature">
+                    <span>📚</span>
+                    <strong>Cursos</strong>
+                    <small>Conteúdos organizados por área.</small>
+                </div>
+
+                <div class="home-feature">
+                    <span>🧩</span>
+                    <strong>Módulos</strong>
+                    <small>Trilhas divididas em etapas.</small>
+                </div>
+
+                <div class="home-feature">
+                    <span>🎓</span>
+                    <strong>Aprendizado</strong>
+                    <small>Acesso para alunos e administradores.</small>
+                </div>
+            </div>
+
+            <div class="home-actions">
                 <a href="{{ url_for('login') }}" class="btn-primary">Login</a>
                 <a href="{{ url_for('cadastro') }}" class="btn-secondary">Criar Conta</a>
             </div>
-        </main>
-    </div>
+        </section>
+    </main>
 
     <div class="unifecaf-corner">
         <span>Recomendamos</span>
+
         <a href="https://www.unifecaf.com.br" target="_blank" title="Visitar site da UniFECAF">
             <img src="{{ url_for('static', filename='img/unifecaf_logo.png') }}" alt="Logo UniFECAF">
         </a>
     </div>
+
 </body>
+
 </html>

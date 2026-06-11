@@ -1,234 +1,219 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Área do Aluno - Core Study</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <style>
-        :root {
-            --primary-color: #11213A;
-            --accent-color: #FF6B00;
-        }
-
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #0f172a;
-            min-height: 100vh;
-            margin: 0; 
-            padding: 0; 
-            color: #f1f5f9; 
-        }
-        
-        .student-navbar { 
-            background-color: var(--primary-color); 
-            padding: 5px 40px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            border-bottom: 3px solid var(--accent-color); 
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            height: 55px; 
-        }
-        .student-navbar img { 
-            height: 35px; 
-            object-fit: contain; 
-        }
-        .student-nav-right { display: flex; align-items: center; gap: 15px; }
-        .student-greeting { font-weight: 700; color: #fff; font-size: 14px; } 
-        
-        /* Estilos dos botões na Navbar */
-        .btn-nav { background-color: rgba(255,255,255,0.05); color: #fff; padding: 6px 14px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; border: 1px solid rgba(255,255,255,0.1); transition: 0.2s; }
-        .btn-nav:hover { background-color: var(--accent-color); border-color: var(--accent-color); color: #fff; }
-        
-        .btn-logout { background-color: rgba(255,255,255,0.05); color: #fff; padding: 6px 14px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; border: 1px solid rgba(255,255,255,0.1); transition: 0.2s; }
-        .btn-logout:hover { background-color: var(--accent-color); border-color: var(--accent-color); color: #fff; }
-
-        .student-container { max-width: 1100px; margin: 20px auto; padding: 0 20px; } 
-        
-        .student-hero { 
-            background: linear-gradient(135deg, var(--primary-color) 0%, #1e293b 100%);
-            color: #fff; 
-            padding: 20px 30px; 
-            border-radius: 8px; 
-            margin-bottom: 20px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
-            position: relative;
-            overflow: hidden;
-            border-bottom: 4px solid var(--accent-color);
-        }
-        
-        .hero-text { position: relative; z-index: 2; }
-        .student-hero h1 { margin: 0 0 4px 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; } 
-        .student-hero p { margin: 0; font-size: 14px; opacity: 0.9; font-weight: 400; max-width: 700px; }
-        
-        .hero-icon { font-size: 45px; position: relative; z-index: 2; } 
-
-        .student-controls { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; }
-        .student-controls input, .student-controls select { padding: 10px 14px; border: 1px solid #334155; border-radius: 8px; font-size: 14px; font-family: inherit; background: #1e293b; color: #fff; transition: all 0.2s; }
-        .student-controls input:focus, .student-controls select:focus { outline: none; border-color: var(--accent-color); }
-        .search-box { flex: 3; }
-        .filter-box { flex: 1; }
-
-        .section-title { font-size: 18px; color: #fff; margin-bottom: 15px; font-weight: 800; border-left: 5px solid var(--accent-color); padding-left: 10px; letter-spacing: -0.5px; }
-
-        /* CARDS ADAPTADOS PARA O TEMA */
-        .course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
-        .course-card { 
-            background: #1E293B; 
-            border-radius: 12px; 
-            overflow: hidden; 
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); 
-            transition: all 0.25s ease; 
-            border: 1px solid var(--accent-color); 
-            display: flex; 
-            flex-direction: column; 
-        }
-        .course-card:hover { 
-            transform: translateY(-5px); 
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4); 
-        }
-        
-        .course-image { height: 90px; background: #0f172a; display: flex; align-items: center; justify-content: center; font-size: 30px; border-bottom: 1px solid #334155; }
-        .course-content { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; }
-        .course-tag { font-size: 10px; background: rgba(255, 107, 0, 0.1); color: var(--accent-color); padding: 3px 10px; border-radius: 20px; font-weight: 700; align-self: flex-start; margin-bottom: 10px; text-transform: uppercase; border: 1px solid rgba(255, 107, 0, 0.2); }
-        .course-title { font-size: 16px; font-weight: 700; color: #fff; margin: 0 0 8px 0; line-height: 1.3; }
-        
-        .course-meta { font-size: 12px; color: var(--accent-color); margin-bottom: 15px; display: flex; align-items: center; gap: 6px; font-weight: 600; }
-        
-        .course-action { margin-top: auto; }
-        .btn-course { display: block; text-align: center; background-color: var(--primary-color); color: #fff; padding: 8px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; transition: all 0.2s; border: 1px solid var(--accent-color); }
-        .btn-course:hover { background-color: var(--accent-color); }
-
-        .no-results { display: none; grid-column: 1 / -1; text-align: center; padding: 40px; color: #94a3b8; background: #1e293b; border-radius: 12px; border: 2px dashed #334155; font-weight: 500; }
-    </style>
 </head>
-<body>
+
+<body class="student-page">
+
+    {% include 'mensagens.html' %}
 
     <header class="student-navbar">
-        {% include 'mensagens.html' %}
-        <div style="background-color: white; border-radius: 6px;">
-            <img style="width: 100%;" src="{{ url_for('static', filename='img/logo_core_study.png') }}" alt="Logo Core Study">
+        <div class="student-brand">
+            <div class="student-logo-box">
+                <img src="{{ url_for('static', filename='img/logo_core_study.png') }}" alt="Logo Core Study">
+            </div>
+
+            <div class="student-brand-text">
+                <strong>Core Study</strong>
+            </div>
         </div>
+
         <div class="student-nav-right">
-            <a href="/perfil" style="text-decoration:none; display:flex; align-items:center; gap:8px;">
-                <div style="background: #ffffff; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid var(--accent-color);">
-                    <span class="avatar-icon">{{ session.get('user_avatar', '🐧') }}</span>
-                </div>
-                <span class="student-greeting" style="color: #fff;">{{ nome_usuario }}</span>
+            <a href="/perfil" class="student-profile-link" title="Abrir configurações da conta">
+                <span class="student-avatar">
+                    <span class="avatar-icon" id="nav-avatar-display">{{ session.get('user_avatar', '🐧') }}</span>
+                </span>
+
+                <span class="student-profile-info">
+                    <strong>{{ nome_usuario }}</strong>
+                </span>
             </a>
+
             <a href="/logout" class="btn-logout">Sair</a>
         </div>
     </header>
 
     <main class="student-container">
-        
-        <div class="student-hero">
+        <section class="student-hero">
             <div class="hero-text">
                 <h1>Pronto para continuar aprendendo?</h1>
                 <p>Explore sua trilha de conhecimentos e acesse os materiais liberados para você.</p>
             </div>
-            <div class="hero-icon">🚀</div>
-        </div>
 
-        <h2 class="section-title">Cursos Disponíveis</h2>
+            <div class="hero-icon" aria-hidden="true">🚀</div>
+        </section>
 
-        <div class="student-controls">
-            <input type="text" id="searchCourse" class="search-box" placeholder="Pesquisar curso por nome...">
+        <section class="student-section-header">
+            <h2 class="section-title">Cursos disponíveis</h2>
+        </section>
+
+        <section class="student-controls">
+            <input
+                type="text"
+                id="searchCourse"
+                class="search-box"
+                placeholder="Pesquisar curso por nome..."
+                autocomplete="off"
+            >
+
             <select id="filterCategory" class="filter-box">
-                <option value="">Todas as Categorias</option>
+                <option value="">Todas as categorias</option>
             </select>
-        </div>
-        
-        <div class="course-grid" id="courseGrid">
+        </section>
+
+        <section class="course-grid" id="courseGrid">
             {% if cursos %}
                 {% for curso in cursos %}
-                <div class="course-card" data-search-item>
-                    <div class="course-image">
-                        📘
-                    </div>
-                    <div class="course-content">
-                        <span class="course-tag">{{ curso[4] if curso[4] else 'Geral' }}</span>
-                        <h3 class="course-title">{{ curso[1] }}</h3>
-                        <div class="course-meta">
-                            ⏱️ {{ curso[3] }} horas de conteúdo
+                    <article class="course-card" data-search-item>
+                        <div class="course-image">
+                            <span class="course-icon" aria-hidden="true">🐧</span>
                         </div>
-                        <div class="course-action">
-                            <a href="/trilha/curso/{{ curso[0] }}" class="btn-course">Acessar Curso</a>
+
+                        <div class="course-content">
+                            <span class="course-tag">{{ curso[4] if curso[4] else 'Geral' }}</span>
+
+                            <h3 class="course-title">{{ curso[1] }}</h3>
+
+                            <div class="course-meta">
+                                ⏱️ {{ curso[3] }} horas de conteúdo
+                            </div>
+
+                            <div class="course-action">
+                                <a href="/trilha/curso/{{ curso[0] }}" class="btn-course">Acessar curso</a>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </article>
                 {% endfor %}
             {% else %}
-                <p style="color: #94a3b8; font-size: 15px; grid-column: 1/-1; text-align: center; background: #1e293b; padding: 30px; border-radius: 12px;">Nenhum curso disponível no momento. Fale com a administração.</p>
+                <div class="empty-student-state">
+                    Nenhum curso disponível no momento. Fale com a administração.
+                </div>
             {% endif %}
-            
+
             <div class="no-results" id="noResults">
                 Nenhum curso encontrado com estes filtros.
             </div>
-        </div>
-
+        </section>
     </main>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const searchInput = document.getElementById('searchCourse');
-            const filterSelect = document.getElementById('filterCategory');
-            const courseCards = document.querySelectorAll('.course-card');
-            const noResultsMsg = document.getElementById('noResults');
+        document.addEventListener("DOMContentLoaded", function () {
+            const searchInput = document.getElementById("searchCourse");
+            const filterSelect = document.getElementById("filterCategory");
+            const courseCards = Array.from(document.querySelectorAll(".course-card"));
+            const noResultsMsg = document.getElementById("noResults");
+            const savedAvatar = localStorage.getItem("userAvatar");
+            const navAvatar = document.getElementById("nav-avatar-display");
 
-            const categories = new Set();
-            courseCards.forEach(card => {
-                const cat = card.querySelector('.course-tag').textContent.trim();
-                if(cat && cat !== 'GERAL') categories.add(cat);
-            });
+            if (savedAvatar && navAvatar) {
+                navAvatar.textContent = savedAvatar;
+            }
 
-            categories.forEach(cat => {
-                const option = document.createElement('option');
-                option.value = cat.toLowerCase();
-                option.textContent = cat;
-                filterSelect.appendChild(option);
-            });
+            function fixMojibake(text) {
+                if (!text || !/[ÃÂ]/.test(text)) {
+                    return text || "";
+                }
 
-            function applyFilters() {
-                const searchTerm = searchInput.value.toLowerCase();
-                const filterTerm = filterSelect.value;
-                let visibleCount = 0;
+                try {
+                    return decodeURIComponent(
+                        Array.from(text)
+                            .map(char => "%" + char.charCodeAt(0).toString(16).padStart(2, "0"))
+                            .join("")
+                    );
+                } catch (error) {
+                    return text;
+                }
+            }
+
+            function normalizeText(text) {
+                return fixMojibake(text)
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .toLowerCase()
+                    .trim();
+            }
+
+            function repairVisibleTexts() {
+                document.querySelectorAll(".course-tag, .course-title, .course-meta").forEach(element => {
+                    element.textContent = fixMojibake(element.textContent);
+                });
+            }
+
+            function buildCategoryFilter() {
+                const categories = new Map();
 
                 courseCards.forEach(card => {
-                    const title = card.querySelector('.course-title').textContent.toLowerCase();
-                    const category = card.querySelector('.course-tag').textContent.toLowerCase();
+                    const tagElement = card.querySelector(".course-tag");
+                    if (!tagElement) return;
 
-                    const matchesSearch = title.includes(searchTerm);
-                    const matchesFilter = filterTerm === "" || category === filterTerm;
+                    const categoryLabel = fixMojibake(tagElement.textContent.trim());
+                    const categoryValue = normalizeText(categoryLabel);
 
-                    if (matchesSearch && matchesFilter) {
-                        card.style.display = '';
-                        visibleCount++;
-                    } else {
-                        card.style.display = 'none';
+                    if (categoryLabel && categoryValue !== "geral" && !categories.has(categoryValue)) {
+                        categories.set(categoryValue, categoryLabel);
                     }
                 });
 
-                noResultsMsg.style.display = (visibleCount === 0 && courseCards.length > 0) ? 'block' : 'none';
+                Array.from(categories.entries())
+                    .sort((a, b) => a[1].localeCompare(b[1], "pt-BR"))
+                    .forEach(([value, label]) => {
+                        const option = document.createElement("option");
+                        option.value = value;
+                        option.textContent = label;
+                        filterSelect.appendChild(option);
+                    });
             }
 
-            searchInput.addEventListener('input', applyFilters);
-            filterSelect.addEventListener('change', applyFilters);
+            function applyFilters() {
+                if (!searchInput || !filterSelect) return;
+
+                const searchTerm = normalizeText(searchInput.value);
+                const filterTerm = normalizeText(filterSelect.value);
+                let visibleCount = 0;
+
+                courseCards.forEach(card => {
+                    const titleElement = card.querySelector(".course-title");
+                    const categoryElement = card.querySelector(".course-tag");
+
+                    const title = normalizeText(titleElement ? titleElement.textContent : "");
+                    const category = normalizeText(categoryElement ? categoryElement.textContent : "");
+
+                    const matchesSearch = !searchTerm || title.includes(searchTerm);
+                    const matchesFilter = !filterTerm || category === filterTerm;
+
+                    if (matchesSearch && matchesFilter) {
+                        card.style.display = "flex";
+                        visibleCount++;
+                    } else {
+                        card.style.display = "none";
+                    }
+                });
+
+                if (noResultsMsg) {
+                    noResultsMsg.style.display = visibleCount === 0 && courseCards.length > 0 ? "block" : "none";
+                }
+            }
+
+            repairVisibleTexts();
+            buildCategoryFilter();
+            applyFilters();
+
+            if (searchInput) {
+                searchInput.addEventListener("input", applyFilters);
+            }
+
+            if (filterSelect) {
+                filterSelect.addEventListener("change", applyFilters);
+            }
         });
     </script>
-    <script>
-        const savedAvatar = localStorage.getItem('userAvatar');
-        if (savedAvatar) {
-            document.getElementById('nav-avatar-display').textContent = savedAvatar;
-        }
-    </script>
 </body>
+
 </html>
