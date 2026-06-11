@@ -100,9 +100,15 @@
                             </div>
                         </div>
 
-                        <a href="{{ mat[4] }}" target="_blank" download class="btn-action-download">
-                            ⬇ Baixar arquivo
-                        </a>
+                        {% if mat|length > 4 and mat[4] %}
+                            <a href="{{ mat[4] }}" target="_blank" rel="noopener noreferrer" class="btn-action-download">
+                                🔗 Abrir material
+                            </a>
+                        {% else %}
+                            <span class="btn-action-download disabled-link">
+                                Material indisponível
+                            </span>
+                        {% endif %}
                     </article>
                 {% else %}
                     <div class="empty-classroom-state">

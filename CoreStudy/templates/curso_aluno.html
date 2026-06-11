@@ -103,9 +103,15 @@
                                                             <small>({{ mat[2] }} • {{ mat[3] }})</small>
                                                         </div>
 
-                                                        <a href="{{ mat[4] if mat|length > 4 else '#' }}" target="_blank" download class="btn-download-badge">
-                                                            ⬇ Baixar
-                                                        </a>
+                                                        {% if mat|length > 4 and mat[4] %}
+                                                            <a href="{{ mat[4] }}" target="_blank" rel="noopener noreferrer" class="btn-download-badge">
+                                                                🔗 Abrir
+                                                            </a>
+                                                        {% else %}
+                                                            <span class="btn-download-badge disabled-link">
+                                                                Indisponível
+                                                            </span>
+                                                        {% endif %}
                                                     </div>
                                                 {% endfor %}
                                             </div>

@@ -1449,7 +1449,7 @@ def visualizar_curso(id_curso):
             for aula in aulas_raw:
                 cursor.execute(
                     """
-                    SELECT id_material, nome_material, tipo_material, tam_arqu_material
+                    SELECT id_material, nome_material, tipo_material, tam_arqu_material, url_material
                     FROM tbl_materiais
                     WHERE fk_tbl_aulas_id_aula = %s
                     """,
@@ -1533,7 +1533,7 @@ def visualizar_aula(id_aula):
 
         cursor.execute(
             """
-            SELECT id_material, nome_material, tipo_material, tam_arqu_material
+            SELECT id_material, nome_material, tipo_material, tam_arqu_material, url_material
             FROM tbl_materiais
             WHERE fk_tbl_aulas_id_aula = %s
             """,
