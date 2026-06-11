@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Curso - Core Study{% endblock %}
+
+{% block header_title %}Editar Curso{% endblock %}
+
+{% block content %}
+<header class="page-header" style="display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20px;">
+    <div>
+        <h1 style="font-size: 22px; color: var(--primary-color); font-weight: 700;">Editar Curso</h1>
+        <p style="color: var(--text-light); font-size: 13px;">Atualize os dados do curso.</p>
+    </div>
+    <div>
+        <a href="/admin/cursos" class="btn-secondary" style="font-size: 13px; padding: 6px 12px;">&larr; Voltar</a>
+    </div>
+</header>
+
+<div class="content-card" style="max-width: 850px; margin: 0 auto; padding: 25px;">
+    <form action="/admin/editar-curso/{{ curso[0] }}" method="POST">
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label for="titulo" style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px; text-transform: none !important;">Nome do Curso</label>
+            <input type="text" id="titulo" name="titulo" value="{{ curso[1] }}" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label for="descricao" style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px; text-transform: none !important;">Descricao</label>
+            <textarea id="descricao" name="descricao" rows="3" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px;">{{ curso[2] }}</textarea>
+        </div>
+
+        <div style="display: flex; gap: 20px;">
+            <div class="form-group" style="margin-bottom: 15px; flex: 1;">
+                <label for="carga_hora" style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px; text-transform: none !important;">Carga Horaria (horas)</label>
+                <input type="number" id="carga_hora" name="carga_hora" value="{{ curso[3] }}" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px; flex: 1;">
+                <label for="categoria_id" style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px; text-transform: none !important;">Categoria</label>
+                <select id="categoria_id" name="categoria_id" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px;">
+                    <option value="" disabled>Selecione...</option>
+                    {% for categoria in categorias %}
+                        <option value="{{ categoria[0] }}" {% if categoria[0] == curso[4] %}selected{% endif %}>{{ categoria[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+            <a href="/admin/cursos" class="btn-secondary" style="padding: 8px 20px;">Cancelar</a>
+            <button type="submit" class="btn-primary" style="padding: 8px 20px;">Salvar Alteracoes</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        let menuCurso = document.querySelector('.sidebar-menu a[href="/admin/cursos"]');
+        if(menuCurso) menuCurso.classList.add('active');
+    });
+</script>
+{% endblock %}

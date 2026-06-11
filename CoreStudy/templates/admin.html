@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Painel Admin{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Bem-vindo, {{ nome_usuario }}</h1>
+    <p>Utilize os cards abaixo para navegar pelas ferramentas de gestão da plataforma.</p>
+</div>
+
+<div class="dashboard-grid" style="max-width: 800px; margin: 0 auto; display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 15px !important;">
+    
+    <div class="dash-card" style="padding: 15px !important; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; height: auto;">
+        <div>
+            <h3 style="font-size: 16px; margin-bottom: 6px;">👥 Usuários</h3>
+            <p style="font-size: 12px; line-height: 1.4; color: var(--text-light); margin-bottom: 12px;">Gerencie as contas de alunos e administradores, cadastre novos perfis e controle acessos.</p>
+        </div>
+        <a href="/admin/usuarios" class="btn-primary" style="width: 100%; text-align: center; padding: 6px 12px; font-size: 13px;">Gerenciar</a>
+    </div>
+
+    <div class="dash-card" style="padding: 15px !important; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; height: auto;">
+        <div>
+            <h3 style="font-size: 16px; margin-bottom: 6px;">🗂️ Categorias</h3>
+            <p style="font-size: 12px; line-height: 1.4; color: var(--text-light); margin-bottom: 12px;">Organize as grandes áreas de conhecimento e temas principais dos cursos oferecidos.</p>
+        </div>
+        <a href="/admin/categorias" class="btn-primary" style="width: 100%; text-align: center; padding: 6px 12px; font-size: 13px;">Gerenciar</a>
+    </div>
+
+    <div class="dash-card" style="padding: 15px !important; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; height: auto;">
+        <div>
+            <h3 style="font-size: 16px; margin-bottom: 6px;">📚 Cursos</h3>
+            <p style="font-size: 12px; line-height: 1.4; color: var(--text-light); margin-bottom: 12px;">Crie novos cursos, defina cargas horárias e agrupe-os em categorias.</p>
+        </div>
+        <a href="/admin/cursos" class="btn-primary" style="width: 100%; text-align: center; padding: 6px 12px; font-size: 13px;">Gerenciar</a>
+    </div>
+
+    <div class="dash-card" style="padding: 15px !important; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; height: auto;">
+        <div>
+            <h3 style="font-size: 16px; margin-bottom: 6px;">🧩 Módulos</h3>
+            <p style="font-size: 12px; line-height: 1.4; color: var(--text-light); margin-bottom: 12px;">Estruture o conteúdo programático dividindo os cursos em módulos.</p>
+        </div>
+        <a href="/admin/modulos" class="btn-primary" style="width: 100%; text-align: center; padding: 6px 12px; font-size: 13px;">Gerenciar</a>
+    </div>
+
+    <div class="dash-card" style="padding: 15px !important; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; height: auto;">
+        <div>
+            <h3 style="font-size: 16px; margin-bottom: 6px;">🎥 Aulas</h3>
+            <p style="font-size: 12px; line-height: 1.4; color: var(--text-light); margin-bottom: 12px;">Adicione o conteúdo principal e links de vídeo dentro dos módulos.</p>
+        </div>
+        <a href="/admin/aulas" class="btn-primary" style="width: 100%; text-align: center; padding: 6px 12px; font-size: 13px;">Gerenciar</a>
+    </div>
+
+    <div class="dash-card" style="padding: 15px !important; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; height: auto;">
+        <div>
+            <h3 style="font-size: 16px; margin-bottom: 6px;">📁 Materiais</h3>
+            <p style="font-size: 12px; line-height: 1.4; color: var(--text-light); margin-bottom: 12px;">Faça o upload de arquivos de apoio vinculados diretamente às aulas.</p>
+        </div>
+        <a href="/admin/materiais" class="btn-primary" style="width: 100%; text-align: center; padding: 6px 12px; font-size: 13px;">Gerenciar</a>
+    </div>
+
+</div>
+{% endblock %}

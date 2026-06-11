@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Editar Categoria - Core Study{% endblock %}
+{% block header_title %}Editar Categoria{% endblock %}
+
+{% block content %}
+<header class="page-header" style="display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20px;">
+    <div>
+        <h1 style="font-size: 22px; color: var(--primary-color); font-weight: 700;">Editar Categoria</h1>
+        <p style="color: var(--text-light); font-size: 13px;">Atualize as informações da categoria.</p>
+    </div>
+    <div>
+        <a href="/admin/categorias" class="btn-secondary" style="font-size: 13px; padding: 6px 12px;">← Voltar</a>
+    </div>
+</header>
+
+<div class="content-card" style="max-width: 850px; margin: 0 auto; padding: 25px;">
+    <form action="/admin/editar-categoria/{{ categoria[0] }}" method="POST">
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label for="nome" style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px; text-transform: none !important;">Nome da Categoria</label>
+            <input type="text" id="nome" name="nome" value="{{ categoria[1] }}" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px;">
+        </div>
+
+        <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+            <a href="/admin/categorias" class="btn-secondary" style="padding: 8px 20px;">Cancelar</a>
+            <button type="submit" class="btn-primary" style="padding: 8px 20px;">Salvar Alterações</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        let menu = document.querySelector('.sidebar-menu a[href="/admin/categorias"]');
+        if(menu) menu.classList.add('active');
+    });
+</script>
+{% endblock %}

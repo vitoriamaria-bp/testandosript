@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Aulas - Core Study{% endblock %}
+{% block header_title %}Gerenciamento de Aulas{% endblock %}
+
+{% block content %}
+<header class="page-header" style="justify-content: space-between; display: flex; align-items: flex-end; margin-bottom: 20px;">
+    <div>
+        <h1 style="font-size: 24px; color: var(--primary-color); font-weight: 700;">Gerenciamento de Aulas</h1>
+        <p style="color: var(--text-light); font-size: 14px;">Gerencie os vídeos e links das aulas da plataforma.</p>
+    </div>
+    <div style="min-width: 190px;">
+        <a href="/admin/adicionar-aula" class="btn-primary">+ Adicionar Aula</a>
+    </div>
+</header>
+
+<div class="content-card">
+    <div class="search-panel" style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
+        <div style="flex: 3;">
+            <input type="text" id="searchInput" placeholder="Pesquisar por ID ou título da aula..." style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box;">
+        </div>
+        
+        <div style="flex: 1;">
+            <select id="filterSelect" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; background: #fff;">
+                <option value="">Todos os Módulos</option>
+                </select>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th style="width: 10%;">ID</th>
+                    <th style="width: 35%;">Título da Aula</th>
+                    <th style="width: 20%;">Módulo</th>
+                    <th style="width: 20%;">Curso</th>
+                    <th style="width: 15%;">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for aula in aulas %}
+                <tr data-search-item>
+                    <td class="aula-id">#{{ aula[0] }}</td>
+                    <td class="aula-titulo" style="font-weight: 500; color: var(--primary-color);">{{ aula[1] }}</td>
+                    <td class="aula-modulo">{{ aula[3] }}</td>
+                    <td>{{ aula[4] }}</td>
+                    <td>
+                        <div class="actions" style="display: flex; gap: 10px; align-items: center;">
+                            <a href="/admin/editar-aula/{{ aula[0] }}" class="btn-secondary">Editar</a>
+                            <form action="/admin/excluir-aula/{{ aula[0] }}" method="POST" id="form-{{ aula[0] }}" style="margin: 0; display: flex;">
+                                <button type="button" class="btn-primary" onclick="openDeleteModal('form-{{ aula[0] }}', 'Tem certeza que deseja excluir a aula {{ aula[1] }}?')">Excluir</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 30px; color: var(--text-light);">Nenhuma aula cadastrada.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const searchInput = document.getElementById('searchInput');
+        const filterSelect = document.getElementById('filterSelect');
+        const rows = document.querySelectorAll('tbody tr[data-search-item]');
+
+        const modulos = new Set();
+        rows.forEach(row => {
+            const modulo = row.querySelector('.aula-modulo').textContent.trim();
+            if(modulo) modulos.add(modulo);
+        });
+
+        modulos.forEach(modulo => {
+            const option = document.createElement('option');
+            option.value = modulo.toLowerCase();
+            option.textContent = modulo;
+            filterSelect.appendChild(option);
+        });
+
+        function aplicarFiltros() {
+            const termoBusca = searchInput.value.toLowerCase();
+            const termoFiltro = filterSelect.value;
+
+            rows.forEach(row => {
+                const id = row.querySelector('.aula-id').textContent.toLowerCase();
+                const titulo = row.querySelector('.aula-titulo').textContent.toLowerCase();
+                const modulo = row.querySelector('.aula-modulo').textContent.toLowerCase().trim();
+
+                const matchBusca = id.includes(termoBusca) || titulo.includes(termoBusca);
+                const matchFiltro = termoFiltro === "" || modulo === termoFiltro;
+
+                row.style.display = (matchBusca && matchFiltro) ? '' : 'none';
+            });
+        }
+
+        searchInput.addEventListener('input', aplicarFiltros);
+        filterSelect.addEventListener('change', aplicarFiltros);
+    });
+</script>
+{% endblock %}

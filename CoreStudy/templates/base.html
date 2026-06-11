@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Painel Admin{% endblock %}</title>
+    <script>
+        if (localStorage.getItem('sidebarState') === 'mini') {
+            document.documentElement.classList.add('mini');
+        }
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        /* Fixa o corte de texto nos selects e inputs */
+        input, select, textarea {
+            width: 100% !important;
+            box-sizing: border-box !important;
+            appearance: none !important; /* ESSENCIAL para o texto aparecer todo */
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            padding: 12px !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 6px !important;
+            background-color: #fff !important;
+        }
+
+        /* O Laranja que você quer */
+        input:focus, select:focus, textarea:focus {
+            outline: none !important;
+            border-color: #f39c12 !important;
+            box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.2) !important;
+        }
+    </style>
+</head>
+<body>
+    <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: url('https://images.unsplash.com/photo-1513001900722-370f803f498d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80') center/cover no-repeat; opacity: 0.12; z-index: -1; pointer-events: none;"></div>
+
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='img/logo_core_study.png') }}" alt="Logo">
+            </div>
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="/admin"><i class="ph ph-gauge"></i> <span>Painel</span></a></li>
+            <li><a href="/admin/usuarios"><i class="ph ph-users"></i> <span>Usuários</span></a></li>
+            <li><a href="/admin/categorias"><i class="ph ph-tag"></i> <span>Categorias</span></a></li>
+            <li><a href="/admin/cursos"><i class="ph ph-books"></i> <span>Cursos</span></a></li>
+            <li><a href="/admin/modulos"><i class="ph ph-squares-four"></i> <span>Módulos</span></a></li>
+            <li><a href="/admin/aulas"><i class="ph ph-video"></i> <span>Aulas</span></a></li>
+            <li><a href="/admin/materiais"><i class="ph ph-folder-open"></i> <span>Materiais</span></a></li>
+            <li style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.08);">
+                <a href="/logout"><i class="ph ph-sign-out"></i> <span>Sair</span></a>
+            </li>
+        </ul>
+    </nav>
+
+    <main class="main-wrapper">
+        <header class="page-header" style="padding: 0; margin-bottom: 25px;">
+            <div class="page-header-left" style="display: flex; align-items: center;">
+                <button id="toggle-sidebar" class="toggle-sidebar-btn">☰</button>
+                <h1 style="font-size: 20px;">{% block header_title %}Painel Administrativo{% endblock %}</h1>
+            </div>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="toast-container">
+                {% for category, message in messages %}
+                    <div class="alert-toast alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+    <div id="deleteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+    <div style="background: var(--white); padding: 30px; border-radius: 10px; max-width: 400px; width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-color);">
+        <h3 style="margin-top: 0; color: var(--primary-color); font-size: 18px; margin-bottom: 15px;">Confirmar Exclusão</h3>
+        <p style="color: var(--text-light); margin-bottom: 25px; font-size: 14px;" id="modalMessage">Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.</p>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" onclick="closeModal()" class="btn-secondary" style="height: 35px;">Cancelar</button>
+            <button type="button" id="confirmDeleteBtn" class="btn-primary" style="height: 35px; background-color: var(--danger-color); border: none;">Sim, Excluir</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function closeModal() { document.getElementById('deleteModal').style.display = 'none'; }
+    function openDeleteModal(formId, message) {
+        document.getElementById('modalMessage').innerText = message;
+        document.getElementById('deleteModal').style.display = 'flex';
+        document.getElementById('confirmDeleteBtn').onclick = function() { document.getElementById(formId).submit(); };
+    }
+</script>
+</body>
+</html>

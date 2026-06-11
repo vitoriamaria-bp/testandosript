@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Adicionar Usuário - Core Study{% endblock %}
+
+{% block header_title %}Gerenciamento de Usuários{% endblock %}
+
+{% block content %}
+<header class="page-header" style="justify-content: space-between; display: flex; align-items: flex-end; margin-bottom: 15px;">
+    <div>
+        <h1 style="font-size: 24px; color: var(--primary-color); font-weight: 700;">Novo Usuário</h1>
+        <p style="color: var(--text-light); font-size: 14px;">Preencha os dados abaixo para cadastrar um novo aluno.</p>
+    </div>
+    <div>
+        <a href="/admin/usuarios" class="btn-secondary" style="width: auto;">← Voltar para Lista</a>
+    </div>
+</header>
+
+<div class="content-card" style="max-width: 800px; margin: 0 auto; padding: 25px; position: relative; background: linear-gradient(rgba(255, 255, 255, 0.93), rgba(255, 255, 255, 0.93)), url('https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80') center/cover no-repeat; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid var(--border-color);">
+    
+    <form action="/admin/adicionar-usuario" method="POST" style="position: relative; z-index: 1;">
+        
+        <div class="form-group" style="margin-bottom: 12px;">
+            <label for="nome">Nome Completo</label>
+            <input type="text" id="nome" name="nome" placeholder="Digite o nome completo" required>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+            <label for="email">E-mail</label>
+            <input type="email" id="email" name="email" placeholder="exemplo@email.com" required>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 12px;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="data_nasc">Data de Nascimento</label>
+                <input type="date" id="data_nasc" name="data_nasc" required>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="telefone">Telefone</label>
+                <div class="phone-row">
+                    <div class="input-icon-wrapper">
+                        <input type="text" value="+55" readonly style="padding-left: 0 !important; text-align: center; background-color: var(--bg-color); color: var(--text-light); cursor: not-allowed;">
+                    </div>
+                    <div style="flex-grow: 1;">
+                        <input type="text" id="telefone" name="telefone" placeholder="(11) 90000-0000" onkeyup="mascaraTelefone(event)" maxlength="15" required style="width: 100%;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label for="senha">Senha</label>
+            <input type="password" id="senha" name="senha" placeholder="Crie uma senha de acesso" required>
+        </div>
+
+        <div class="btn-block-row" style="justify-content: flex-end; border-top: 1px solid rgba(203, 213, 225, 0.5); padding-top: 20px;">
+            <a href="/admin/usuarios" class="btn-secondary" style="width: auto;">Cancelar</a>
+            <button type="submit" class="btn-primary" style="width: auto;">Salvar Usuário</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        let menuUsuario = document.querySelector('.sidebar-menu a[href="/admin/usuarios"]');
+        if(menuUsuario) {
+            menuUsuario.classList.add('active');
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Módulos - Core Study{% endblock %}
+{% block header_title %}Gerenciamento de Módulos{% endblock %}
+
+{% block content %}
+<header class="page-header" style="justify-content: space-between; display: flex; align-items: flex-end; margin-bottom: 20px;">
+    <div>
+        <h1 style="font-size: 24px; color: var(--primary-color); font-weight: 700;">Gerenciamento de Módulos</h1>
+        <p style="color: var(--text-light); font-size: 14px;">Organize as divisões de conteúdo dos cursos.</p>
+    </div>
+    <div style="min-width: 190px;">
+        <a href="/admin/adicionar-modulo" class="btn-primary">+ Adicionar Módulo</a>
+    </div>
+</header>
+
+<div class="content-card">
+    <div class="search-panel" style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
+        <div style="flex: 3;">
+            <input type="text" id="searchInput" placeholder="Pesquisar por ID ou nome do módulo..." style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box;">
+        </div>
+        
+        <div style="flex: 1;">
+            <select id="filterSelect" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; background: #fff;">
+                <option value="">Todos os Cursos</option>
+                </select>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th style="width: 10%;">ID</th>
+                    <th style="width: 40%;">Nome do Módulo</th>
+                    <th style="width: 30%;">Curso Vinculado</th>
+                    <th style="width: 20%;">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for modulo in modulos %}
+                <tr data-search-item>
+                    <td class="modulo-id">#{{ modulo[0] }}</td>
+                    <td class="modulo-nome" style="font-weight: 500; color: var(--primary-color);">{{ modulo[1] }}</td>
+                    <td class="modulo-curso">{{ modulo[2] }}</td>
+                    <td>
+                        <div class="actions" style="display: flex; gap: 10px; align-items: center;">
+                            <a href="/admin/editar-modulo/{{ modulo[0] }}" class="btn-secondary">Editar</a>
+                            <form action="/admin/excluir-modulo/{{ modulo[0] }}" method="POST" id="form-{{ modulo[0] }}" style="margin: 0; display: flex;">
+                                <button type="button" class="btn-primary" onclick="openDeleteModal('form-{{ modulo[0] }}', 'Tem certeza que deseja excluir o módulo {{ modulo[1] }}?')">Excluir</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 30px; color: var(--text-light);">Nenhum módulo cadastrado.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const searchInput = document.getElementById('searchInput');
+        const filterSelect = document.getElementById('filterSelect');
+        const rows = document.querySelectorAll('tbody tr[data-search-item]');
+
+        const cursos = new Set();
+        rows.forEach(row => {
+            const curso = row.querySelector('.modulo-curso').textContent.trim();
+            if(curso) cursos.add(curso);
+        });
+
+        cursos.forEach(curso => {
+            const option = document.createElement('option');
+            option.value = curso.toLowerCase();
+            option.textContent = curso;
+            filterSelect.appendChild(option);
+        });
+
+        function aplicarFiltros() {
+            const termoBusca = searchInput.value.toLowerCase();
+            const termoFiltro = filterSelect.value;
+
+            rows.forEach(row => {
+                const id = row.querySelector('.modulo-id').textContent.toLowerCase();
+                const nome = row.querySelector('.modulo-nome').textContent.toLowerCase();
+                const curso = row.querySelector('.modulo-curso').textContent.toLowerCase().trim();
+
+                const matchBusca = id.includes(termoBusca) || nome.includes(termoBusca);
+                const matchFiltro = termoFiltro === "" || curso === termoFiltro;
+
+                row.style.display = (matchBusca && matchFiltro) ? '' : 'none';
+            });
+        }
+
+        searchInput.addEventListener('input', aplicarFiltros);
+        filterSelect.addEventListener('change', aplicarFiltros);
+    });
+</script>
+{% endblock %}

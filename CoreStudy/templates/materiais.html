@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Materiais - Core Study{% endblock %}
+{% block header_title %}Gerenciamento de Materiais{% endblock %}
+
+{% block content %}
+<header class="page-header" style="justify-content: space-between; display: flex; align-items: flex-end; margin-bottom: 20px;">
+    <div>
+        <h1 style="font-size: 24px; color: var(--primary-color); font-weight: 700;">Gerenciamento de Materiais</h1>
+        <p style="color: var(--text-light); font-size: 14px;">Administre os arquivos e links de apoio das aulas.</p>
+    </div>
+    <div style="min-width: 190px;">
+        <a href="/admin/adicionar-material" class="btn-primary">+ Adicionar Material</a>
+    </div>
+</header>
+
+<div class="content-card">
+    <div class="search-panel" style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
+        <div style="flex: 3;">
+            <input type="text" id="searchInput" placeholder="Pesquisar por ID ou nome do material..." style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box;">
+        </div>
+        
+        <div style="flex: 1;">
+            <select id="filterSelect" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; background: #fff;">
+                <option value="">Todas as Aulas</option>
+                </select>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th style="width: 10%;">ID</th>
+                    <th style="width: 25%;">Nome do Material</th>
+                    <th style="width: 15%;">Tipo</th>
+                    <th style="width: 10%;">Tamanho</th>
+                    <th style="width: 20%;">Aula Vinculada</th>
+                    <th style="width: 20%;">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for material in materiais %}
+                <tr data-search-item>
+                    <td class="mat-id">#{{ material[0] }}</td>
+                    <td class="mat-nome" style="font-weight: 500; color: var(--primary-color);">{{ material[1] }}</td>
+                    <td>{{ material[2] }}</td>
+                    <td>{{ material[3] }}</td>
+                    <td class="mat-aula">{{ material[4] }}</td>
+                    <td>
+                        <div class="actions" style="display: flex; gap: 10px; align-items: center;">
+                            <a href="/admin/editar-material/{{ material[0] }}" class="btn-secondary">Editar</a>
+                            <form action="/admin/excluir-material/{{ material[0] }}" method="POST" id="form-{{ material[0] }}" style="margin: 0; display: flex;">
+                                <button type="button" class="btn-primary" onclick="openDeleteModal('form-{{ material[0] }}', 'Tem certeza que deseja excluir o material {{ material[1] }}?')">Excluir</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 30px; color: var(--text-light);">Nenhum material cadastrado.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const searchInput = document.getElementById('searchInput');
+        const filterSelect = document.getElementById('filterSelect');
+        const rows = document.querySelectorAll('tbody tr[data-search-item]');
+
+        // Extrair aulas únicas para o filtro
+        const aulas = new Set();
+        rows.forEach(row => {
+            const aula = row.querySelector('.mat-aula').textContent.trim();
+            if(aula) aulas.add(aula);
+        });
+
+        aulas.forEach(aula => {
+            const option = document.createElement('option');
+            option.value = aula.toLowerCase();
+            option.textContent = aula;
+            filterSelect.appendChild(option);
+        });
+
+        function aplicarFiltros() {
+            const termoBusca = searchInput.value.toLowerCase();
+            const termoFiltro = filterSelect.value;
+
+            rows.forEach(row => {
+                const id = row.querySelector('.mat-id').textContent.toLowerCase();
+                const nome = row.querySelector('.mat-nome').textContent.toLowerCase();
+                const aula = row.querySelector('.mat-aula').textContent.toLowerCase().trim();
+
+                const matchBusca = id.includes(termoBusca) || nome.includes(termoBusca);
+                const matchFiltro = termoFiltro === "" || aula === termoFiltro;
+
+                row.style.display = (matchBusca && matchFiltro) ? '' : 'none';
+            });
+        }
+
+        searchInput.addEventListener('input', aplicarFiltros);
+        filterSelect.addEventListener('change', aplicarFiltros);
+    });
+</script>
+{% endblock %}

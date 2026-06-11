@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Categorias - Core Study{% endblock %}
+{% block header_title %}Gerenciamento de Categorias{% endblock %}
+
+{% block content %}
+<header class="page-header" style="justify-content: space-between; display: flex; align-items: flex-end; margin-bottom: 20px;">
+    <div>
+        <h1 style="font-size: 24px; color: var(--primary-color); font-weight: 700;">Gerenciamento de Categorias</h1>
+        <p style="color: var(--text-light); font-size: 14px;">Organize as áreas de estudo da plataforma.</p>
+    </div>
+    <div style="min-width: 190px;">
+        <a href="/admin/adicionar-categoria" class="btn-primary">+ Adicionar Categoria</a>
+    </div>
+</header>
+
+<div class="content-card">
+    <div class="search-panel" style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
+        <div style="flex: 3;">
+            <input type="text" id="searchInput" placeholder="Pesquisar por ID ou nome da categoria..." style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box;">
+        </div>
+        
+        <div style="flex: 1;">
+            <select id="filterSelect" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; background: #fff;">
+                <option value="id_desc">Ordem por ID (Decrescente)</option>
+                <option value="id_asc">Ordem por ID (Crescente)</option>
+                <option value="az">Ordem Alfabética (A-Z)</option>
+                <option value="za">Ordem Alfabética (Z-A)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th style="width: 10%;">ID</th>
+                    <th style="width: 70%;">Nome da Categoria</th>
+                    <th style="width: 20%;">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for categoria in categorias %}
+                <tr data-search-item>
+                    <td class="cat-id">#{{ categoria[0] }}</td>
+                    <td class="cat-nome" style="font-weight: 500; color: var(--primary-color);">{{ categoria[1] }}</td>
+                    <td>
+                        <div class="actions" style="display: flex; gap: 10px; align-items: center;">
+                            <a href="/admin/editar-categoria/{{ categoria[0] }}" class="btn-secondary">Editar</a>
+                            <form action="/admin/excluir-categoria/{{ categoria[0] }}" method="POST" id="form-{{ categoria[0] }}" style="margin: 0; display: flex;">
+                                <button type="button" class="btn-primary" onclick="openDeleteModal('form-{{ categoria[0] }}', 'Tem certeza que deseja excluir a categoria {{ categoria[1] }}?')">Excluir</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" style="text-align: center; padding: 30px; color: var(--text-light);">Nenhuma categoria cadastrada.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const searchInput = document.getElementById('searchInput');
+        const sortFilter = document.getElementById('filterSelect');
+        const tableBody = document.querySelector('tbody');
+        let rows = Array.from(tableBody.querySelectorAll('tr[data-search-item]'));
+
+        // Pesquisa
+        searchInput.addEventListener('input', function() {
+            const term = this.value.toLowerCase();
+            rows.forEach(row => {
+                const id = row.querySelector('.cat-id').textContent.toLowerCase();
+                const nome = row.querySelector('.cat-nome').textContent.toLowerCase();
+                row.style.display = (id.includes(term) || nome.includes(term)) ? '' : 'none';
+            });
+        });
+
+        // Ordenação
+        sortFilter.addEventListener('change', function() {
+            const val = this.value;
+            rows.sort((a, b) => {
+                const idA = parseInt(a.querySelector('.cat-id').textContent.replace('#', ''));
+                const idB = parseInt(b.querySelector('.cat-id').textContent.replace('#', ''));
+                const nomeA = a.querySelector('.cat-nome').textContent.trim();
+                const nomeB = b.querySelector('.cat-nome').textContent.trim();
+
+                if (val === 'az') return nomeA.localeCompare(nomeB);
+                if (val === 'za') return nomeB.localeCompare(nomeA);
+                if (val === 'id_asc') return idA - idB;
+                return idB - idA; // id_desc
+            });
+            rows.forEach(row => tableBody.appendChild(row));
+        });
+    });
+</script>
+{% endblock %}

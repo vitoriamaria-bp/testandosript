@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Cursos - Core Study{% endblock %}
+{% block header_title %}Gerenciamento de Cursos{% endblock %}
+
+{% block content %}
+<header class="page-header" style="justify-content: space-between; display: flex; align-items: flex-end; margin-bottom: 20px;">
+    <div>
+        <h1 style="font-size: 24px; color: var(--primary-color); font-weight: 700;">Gerenciamento de Cursos</h1>
+        <p style="color: var(--text-light); font-size: 14px;">Administre os cursos disponíveis e suas informações.</p>
+    </div>
+    <div style="min-width: 190px;">
+        <a href="/admin/adicionar-curso" class="btn-primary">+ Adicionar Curso</a>
+    </div>
+</header>
+
+<div class="content-card">
+    <div class="search-panel" style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
+        <div style="flex: 3;">
+            <input type="text" id="searchInput" placeholder="Pesquisar por ID ou nome do curso..." style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box;">
+        </div>
+        
+        <div style="flex: 1;">
+            <select id="filterSelect" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; background: #fff;">
+                <option value="">Todas as Categorias</option>
+                </select>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th style="width: 10%;">ID</th>
+                    <th style="width: 35%;">Nome do Curso</th>
+                    <th style="width: 20%;">Categoria</th>
+                    <th style="width: 15%;">Carga Horária</th>
+                    <th style="width: 20%;">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for curso in cursos %}
+                <tr data-search-item>
+                    <td class="curso-id">#{{ curso[0] }}</td>
+                    <td class="curso-nome" style="font-weight: 500; color: var(--primary-color);">{{ curso[1] }}</td>
+                    <td class="curso-categoria">{{ curso[4] }}</td>
+                    <td>{{ curso[3] }}h</td>
+                    <td>
+                        <div class="actions" style="display: flex; gap: 10px; align-items: center;">
+                            <a href="/admin/editar-curso/{{ curso[0] }}" class="btn-secondary">Editar</a>
+                            <form action="/admin/excluir-curso/{{ curso[0] }}" method="POST" id="form-{{ curso[0] }}" style="margin: 0; display: flex;">
+                                <button type="button" class="btn-primary" onclick="openDeleteModal('form-{{ curso[0] }}', 'Tem certeza que deseja excluir o curso {{ curso[1] }}?')">Excluir</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 30px; color: var(--text-light);">Nenhum curso cadastrado.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const searchInput = document.getElementById('searchInput');
+        const filterSelect = document.getElementById('filterSelect');
+        const rows = document.querySelectorAll('tbody tr[data-search-item]');
+
+        // Extrair categorias únicas da tabela
+        const categorias = new Set();
+        rows.forEach(row => {
+            const cat = row.querySelector('.curso-categoria').textContent.trim();
+            if(cat) categorias.add(cat);
+        });
+
+        categorias.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.toLowerCase();
+            option.textContent = cat;
+            filterSelect.appendChild(option);
+        });
+
+        // Aplicar filtros
+        function aplicarFiltros() {
+            const termoBusca = searchInput.value.toLowerCase();
+            const termoFiltro = filterSelect.value;
+
+            rows.forEach(row => {
+                const id = row.querySelector('.curso-id').textContent.toLowerCase();
+                const nome = row.querySelector('.curso-nome').textContent.toLowerCase();
+                const categoria = row.querySelector('.curso-categoria').textContent.toLowerCase().trim();
+
+                const matchBusca = id.includes(termoBusca) || nome.includes(termoBusca);
+                const matchFiltro = termoFiltro === "" || categoria === termoFiltro;
+
+                row.style.display = (matchBusca && matchFiltro) ? '' : 'none';
+            });
+        }
+
+        searchInput.addEventListener('input', aplicarFiltros);
+        filterSelect.addEventListener('change', aplicarFiltros);
+    });
+</script>
+{% endblock %}
