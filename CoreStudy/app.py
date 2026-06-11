@@ -61,20 +61,25 @@ def registro_existe(cursor, tabela, coluna, valor):
 def email_em_uso(cursor, email, id_usuario=None):
     if id_usuario is None:
         cursor.execute(
-            "SELECT COUNT(*) FROM tbl_usuarios WHERE email_usuario = %s",
+            "SELECT COUNT(*) AS total FROM tbl_usuarios WHERE email_usuario = %s",
             (email,),
         )
     else:
         cursor.execute(
             """
-            SELECT COUNT(*)
+            SELECT COUNT(*) AS total
             FROM tbl_usuarios
             WHERE email_usuario = %s AND id_usuario <> %s
             """,
             (email, id_usuario),
         )
 
-    return cursor.fetchone()[0] > 0
+    resultado = cursor.fetchone()
+
+    if isinstance(resultado, dict):
+        return resultado.get("total", 0) > 0
+
+    return resultado[0] > 0
 
 
 def categoria_em_uso(cursor, nome_categoria, id_categoria=None):
