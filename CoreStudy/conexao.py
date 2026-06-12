@@ -4,11 +4,11 @@ import mysql.connector
 from mysql.connector import Error
 
 
-HOST = os.getenv("DB_HOST", "localhost")
-USUARIO = os.getenv("DB_USER", "root")
-SENHA = os.getenv("DB_PASSWORD", "root")
-BANCO = os.getenv("DB_NAME", "db_core_study1")
-PORTA = int(os.getenv("DB_PORT", "3306"))
+HOST = os.getenv("DB_HOST") or os.getenv("MYSQLHOST", "localhost")
+USUARIO = os.getenv("DB_USER") or os.getenv("MYSQLUSER", "root")
+SENHA = os.getenv("DB_PASSWORD") or os.getenv("MYSQLPASSWORD", "root")
+BANCO = os.getenv("DB_NAME") or os.getenv("MYSQLDATABASE", "db_core_study1")
+PORTA = int(os.getenv("DB_PORT") or os.getenv("MYSQLPORT", "3306"))
 URL_VIDEO_PADRAO = "https://www.youtube.com/watch?v=4p7axLXXBGU"
 URL_MATERIAL_IA = "https://drive.google.com/drive/folders/1dlcTYJG3nuSXJ0cOhn2qeVDTmUf5zv4I?usp=sharing"
 URLS_VIDEO_POR_CURSO = {
