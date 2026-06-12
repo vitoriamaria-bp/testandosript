@@ -13,6 +13,9 @@ function configurarValidacaoEmail(input) {
         const adminValido = permiteAdmin && valor.toLowerCase() === "admin";
 
         input.classList.remove("input-valid", "input-invalid");
+        if (mensagem) {
+            mensagem.classList.remove("success", "error");
+        }
 
         if (valor === "") {
             input.setCustomValidity("");
@@ -26,15 +29,17 @@ function configurarValidacaoEmail(input) {
             input.setCustomValidity("");
             input.classList.add("input-valid");
             if (mensagem) {
-                mensagem.textContent = emailValido ? "Email valido." : "";
+                mensagem.textContent = emailValido ? "E-mail válido." : "";
+                mensagem.classList.add("success");
             }
             return;
         }
 
-        input.setCustomValidity("Digite um email valido, como nome@dominio.com.");
+        input.setCustomValidity("Digite um e-mail válido, como nome@dominio.com.");
         input.classList.add("input-invalid");
         if (mensagem) {
-            mensagem.textContent = "Digite um email valido, como nome@dominio.com.";
+            mensagem.textContent = "Digite um e-mail válido, como nome@dominio.com.";
+            mensagem.classList.add("error");
         }
     }
 

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificado - Core Study</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body class="student-page certificate-page">
+    <header class="student-navbar no-print">
+        <div class="student-brand">
+            <div class="student-logo-box">
+                <img src="{{ url_for('static', filename='img/logo_core_study.png') }}" alt="Logo Core Study">
+            </div>
+
+            <div class="student-brand-text">
+                <strong>Core Study</strong>
+            </div>
+
+            <a href="/aluno" class="student-back-link" title="Voltar para a área do aluno">
+                <span aria-hidden="true">←</span>
+                Voltar
+            </a>
+        </div>
+
+        <div class="student-nav-right">
+            <button type="button" class="btn-logout" onclick="window.print()">Imprimir</button>
+        </div>
+    </header>
+
+    <main class="certificate-container">
+        <section class="certificate-sheet">
+            <span class="certificate-kicker">Certificado de conclusão</span>
+            <h1>Core Study</h1>
+
+            <p>Certificamos que</p>
+            <strong class="certificate-student">{{ certificado[0] }}</strong>
+            <p>concluiu com aprovação o curso</p>
+            <strong class="certificate-course">{{ certificado[1] }}</strong>
+
+            <div class="certificate-footer">
+                <span>Emitido em {{ certificado[2].strftime('%d/%m/%Y') if certificado[2] else '' }}</span>
+                <span>Core Study</span>
+            </div>
+        </section>
+    </main>
+</body>
+
+</html>

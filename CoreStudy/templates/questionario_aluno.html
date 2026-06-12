@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ questionario[1] }} - Core Study</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body class="student-page quiz-page">
+    {% include 'mensagens.html' %}
+
+    <header class="student-navbar">
+        <div class="student-brand">
+            <div class="student-logo-box">
+                <img src="{{ url_for('static', filename='img/logo_core_study.png') }}" alt="Logo Core Study">
+            </div>
+
+            <div class="student-brand-text">
+                <strong>Core Study</strong>
+            </div>
+
+            <a href="/trilha/curso/{{ questionario[4] }}" class="student-back-link" title="Voltar para o curso">
+                <span aria-hidden="true">←</span>
+                Voltar
+            </a>
+        </div>
+
+        <div class="student-nav-right">
+            <a href="/perfil" class="student-profile-link" title="Abrir configurações da conta">
+                <span class="student-avatar">
+                    <span class="avatar-icon">{{ session.get('user_avatar', '🐧') }}</span>
+                </span>
+                <span class="student-profile-info">
+                    <strong>{{ nome_usuario }}</strong>
+                </span>
+            </a>
+
+            <a href="/logout" class="btn-logout">Sair</a>
+        </div>
+    </header>
+
+    <main class="student-container quiz-container">
+        <section class="quiz-header-card">
+            <div>
+                <span class="module-quiz-label">
+                    {% if questionario[2] == 'CURSO' %}Questionário final{% else %}Questionário do módulo{% endif %}
+                </span>
+                <h1>{{ questionario[1] }}</h1>
+                <p>Nota mínima para aprovação: {{ questionario[5] }}%</p>
+            </div>
+
+            <span class="quiz-score-pill">{{ questoes|length }} questões</span>
+        </section>
+
+        {% if resultado %}
+            <section class="quiz-result-card {% if resultado.aprovado %}approved{% else %}failed{% endif %}">
+                <strong>{{ resultado.nota }}%</strong>
+                <span>{{ resultado.acertos }} de {{ resultado.total }} respostas corretas</span>
+                <p>
+                    {% if resultado.aprovado %}
+                        Aprovado. Você pode voltar para a trilha.
+                    {% else %}
+                        Ainda não foi desta vez. Revise o conteúdo e tente novamente.
+                    {% endif %}
+                </p>
+            </section>
+        {% endif %}
+
+        <form method="POST" class="quiz-form" id="quizForm">
+            {% for questao in questoes %}
+                <article class="quiz-question-card {% if resultado %}review-open {% if questao.acertou %}correct{% else %}wrong{% endif %}{% endif %}">
+                    <h2>{{ loop.index }}. {{ questao.enunciado }}</h2>
+
+                    <div class="quiz-options">
+                        {% for alternativa in questao.alternativas %}
+                            {% set selecionada = resultado and questao.alternativa_escolhida_id == alternativa[0] %}
+                            {% set correta = resultado and alternativa[2] %}
+                            <label class="{% if correta %}quiz-option-correct{% elif selecionada %}quiz-option-wrong{% endif %} {% if selecionada %}quiz-option-selected{% endif %}">
+                                <input type="radio" name="questao_{{ questao.id }}" value="{{ alternativa[0] }}" {% if selecionada %}checked{% endif %} {% if resultado %}disabled{% else %}required{% endif %}>
+                                <span class="quiz-radio-mark" aria-hidden="true"></span>
+                                <span>{{ alternativa[1] }}</span>
+                                {% if correta %}
+                                    <small>Resposta correta</small>
+                                {% elif selecionada %}
+                                    <small>Sua resposta</small>
+                                {% endif %}
+                            </label>
+                        {% endfor %}
+                    </div>
+
+                    {% if resultado %}
+                        <div class="quiz-inline-feedback">
+                            <span>{% if questao.acertou %}Você acertou{% else %}Você marcou uma alternativa incorreta{% endif %}</span>
+
+                            {% if not questao.acertou %}
+                                <p><strong>Sua resposta:</strong> {{ questao.resposta_escolhida }}</p>
+                                <p><strong>Resposta correta:</strong> {{ questao.resposta_correta }}</p>
+                            {% else %}
+                                <p><strong>Resposta correta:</strong> {{ questao.resposta_correta }}</p>
+                            {% endif %}
+
+                            <p><strong>Explicação:</strong> {{ questao.explicacao }}</p>
+                        </div>
+                    {% endif %}
+                </article>
+            {% endfor %}
+
+            <div class="quiz-actions">
+                <a href="/trilha/curso/{{ questionario[4] }}" class="quiz-secondary-action">Voltar para trilha</a>
+                {% if resultado %}
+                    <a href="/trilha/questionario/{{ questionario[0] }}?nova=1" class="quiz-primary-action">Responder novamente</a>
+                {% else %}
+                    <button type="submit" class="quiz-primary-action">Enviar respostas</button>
+                {% endif %}
+            </div>
+        </form>
+    </main>
+
+    <div class="quiz-confirm-overlay" id="quizConfirm" hidden>
+        <div class="quiz-confirm-box">
+            <span class="module-quiz-label">Confirmar envio</span>
+            <h2>Enviar respostas?</h2>
+            <p>Depois do envio, sua tentativa será registrada e a correção aparecerá na tela.</p>
+
+            <div class="quiz-confirm-actions">
+                <button type="button" class="quiz-secondary-action" id="cancelQuizSubmit">Revisar respostas</button>
+                <button type="button" class="quiz-primary-action" id="confirmQuizSubmit">Enviar agora</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.getElementById("quizForm");
+            const overlay = document.getElementById("quizConfirm");
+            const cancelButton = document.getElementById("cancelQuizSubmit");
+            const confirmButton = document.getElementById("confirmQuizSubmit");
+            let confirmed = false;
+
+            if (!form || !overlay || !cancelButton || !confirmButton || !form.querySelector("button[type='submit']")) {
+                return;
+            }
+
+            form.addEventListener("submit", function (event) {
+                if (confirmed) {
+                    return;
+                }
+
+                event.preventDefault();
+                overlay.hidden = false;
+            });
+
+            cancelButton.addEventListener("click", function () {
+                overlay.hidden = true;
+            });
+
+            confirmButton.addEventListener("click", function () {
+                confirmed = true;
+                overlay.hidden = true;
+                form.requestSubmit();
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -66,27 +66,49 @@
             <select id="filterCategory" class="filter-box">
                 <option value="">Todas as categorias</option>
             </select>
+
+            <select id="filterProgress" class="filter-box progress-filter-box">
+                <option value="">Todos os progressos</option>
+                <option value="not-started">Não iniciados</option>
+                <option value="in-progress">Em andamento</option>
+                <option value="completed">Concluídos</option>
+            </select>
         </section>
 
         <section class="course-grid" id="courseGrid">
             {% if cursos %}
                 {% for curso in cursos %}
-                    <article class="course-card" data-search-item>
+                    <article
+                        class="course-card"
+                        data-search-item
+                        data-progress-status="{% if curso.percentual == 0 %}not-started{% elif curso.percentual == 100 %}completed{% else %}in-progress{% endif %}"
+                    >
                         <div class="course-image">
                             <span class="course-icon" aria-hidden="true">🐧</span>
                         </div>
 
                         <div class="course-content">
-                            <span class="course-tag">{{ curso[4] if curso[4] else 'Geral' }}</span>
+                            <span class="course-tag">{{ curso.categoria }}</span>
 
-                            <h3 class="course-title">{{ curso[1] }}</h3>
+                            <h3 class="course-title">{{ curso.titulo }}</h3>
 
                             <div class="course-meta">
-                                ⏱️ {{ curso[3] }} horas de conteúdo
+                                ⏱️ {{ curso.carga_hora }} horas de conteúdo
+                            </div>
+
+                            <div class="student-card-progress" aria-label="Progresso no curso">
+                                <div class="student-card-progress-info">
+                                    <span>{{ curso.percentual }}%</span>
+                                    <small>{{ curso.aulas_concluidas }} de {{ curso.total_aulas }} aulas</small>
+                                </div>
+
+                                <div class="student-card-progress-bar" role="progressbar" aria-valuenow="{{ curso.percentual }}" aria-valuemin="0" aria-valuemax="100">
+                                    <span style="width: {{ curso.percentual }}%;"></span>
+                                </div>
                             </div>
 
                             <div class="course-action">
-                                <a href="/trilha/curso/{{ curso[0] }}" class="btn-course">Acessar curso</a>
+                                <a href="/trilha/curso/{{ curso.id }}" class="btn-course">Acessar curso</a>
                             </div>
                         </div>
                     </article>
@@ -107,6 +129,7 @@
         document.addEventListener("DOMContentLoaded", function () {
             const searchInput = document.getElementById("searchCourse");
             const filterSelect = document.getElementById("filterCategory");
+            const progressSelect = document.getElementById("filterProgress");
             const courseCards = Array.from(document.querySelectorAll(".course-card"));
             const noResultsMsg = document.getElementById("noResults");
             const savedAvatar = localStorage.getItem("userAvatar");
@@ -176,6 +199,7 @@
 
                 const searchTerm = normalizeText(searchInput.value);
                 const filterTerm = normalizeText(filterSelect.value);
+                const progressTerm = progressSelect ? progressSelect.value : "";
                 let visibleCount = 0;
 
                 courseCards.forEach(card => {
@@ -187,8 +211,9 @@
 
                     const matchesSearch = !searchTerm || title.includes(searchTerm);
                     const matchesFilter = !filterTerm || category === filterTerm;
+                    const matchesProgress = !progressTerm || card.dataset.progressStatus === progressTerm;
 
-                    if (matchesSearch && matchesFilter) {
+                    if (matchesSearch && matchesFilter && matchesProgress) {
                         card.style.display = "flex";
                         visibleCount++;
                     } else {
@@ -211,6 +236,10 @@
 
             if (filterSelect) {
                 filterSelect.addEventListener("change", applyFilters);
+            }
+
+            if (progressSelect) {
+                progressSelect.addEventListener("change", applyFilters);
             }
         });
     </script>

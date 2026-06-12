@@ -59,6 +59,23 @@
             </div>
         </section>
 
+        <section class="course-progress-card" aria-label="Progresso do curso">
+            <div class="course-progress-summary">
+                <div>
+                    <span class="course-progress-label">Seu progresso</span>
+                    <strong>{{ percentual_progresso }}%</strong>
+                </div>
+
+                <span class="course-progress-count">
+                    {{ aulas_concluidas }} de {{ total_aulas }} aulas concluídas
+                </span>
+            </div>
+
+            <div class="course-progress-bar" role="progressbar" aria-valuenow="{{ percentual_progresso }}" aria-valuemin="0" aria-valuemax="100">
+                <span style="width: {{ percentual_progresso }}%;"></span>
+            </div>
+        </section>
+
         <section class="student-section-header">
             <h2 class="section-title">Módulos e aulas</h2>
         </section>
@@ -83,7 +100,13 @@
                                         <div class="lesson-main-row">
                                             <div class="lesson-info">
                                                 <span class="lesson-icon" aria-hidden="true"></span>
-                                                <span class="lesson-title">{{ aula.titulo }}</span>
+
+                                                <span class="lesson-title-wrap">
+                                                    <span class="lesson-title">{{ aula.titulo }}</span>
+                                                    <span class="lesson-status-badge {% if aula.concluida %}completed{% else %}pending{% endif %}">
+                                                        {% if aula.concluida %}Concluída{% else %}Pendente{% endif %}
+                                                    </span>
+                                                </span>
                                             </div>
 
                                             <a href="/trilha/aula/{{ aula.id }}" class="btn-assistir">
@@ -123,6 +146,32 @@
                                     Nenhuma aula disponível neste módulo.
                                 </div>
                             {% endif %}
+
+                            {% if modulo.questionario %}
+                                <div class="module-quiz-card {% if modulo.questionario.aprovado %}approved{% elif modulo.questionario.liberado %}available{% else %}locked{% endif %}">
+                                    <div>
+                                        <span class="module-quiz-label">Questionário do módulo</span>
+                                        <strong>{{ modulo.questionario.titulo }}</strong>
+                                        <small>
+                                            {% if modulo.questionario.aprovado %}
+                                                Aprovado
+                                            {% elif modulo.questionario.liberado %}
+                                                Nota mínima: {{ modulo.questionario.nota_minima }}%
+                                            {% else %}
+                                                Conclua as aulas do módulo para liberar
+                                            {% endif %}
+                                        </small>
+                                    </div>
+
+                                    {% if modulo.questionario.liberado %}
+                                        <a href="/trilha/questionario/{{ modulo.questionario.id }}" class="btn-quiz">
+                                            {% if modulo.questionario.aprovado %}Revisar{% else %}Responder{% endif %}
+                                        </a>
+                                    {% else %}
+                                        <span class="btn-quiz disabled">Bloqueado</span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
                         </div>
                     </article>
                 {% endfor %}
@@ -132,6 +181,40 @@
                 </div>
             {% endif %}
         </section>
+
+        {% if questionario_final %}
+            <section class="course-final-card {% if questionario_final.aprovado %}approved{% elif questionario_final.liberado %}available{% else %}locked{% endif %}">
+                <div>
+                    <span class="module-quiz-label">Etapa final</span>
+                    <h2>{{ questionario_final.titulo }}</h2>
+                    <p>
+                        {% if questionario_final.aprovado %}
+                            Questionário final aprovado. Seu certificado está disponível.
+                        {% elif questionario_final.liberado %}
+                            Responda o questionário final para liberar o certificado.
+                        {% else %}
+                            Conclua todas as aulas e aprove os questionários dos módulos para liberar.
+                        {% endif %}
+                    </p>
+                </div>
+
+                <div class="course-final-actions">
+                    {% if questionario_final.liberado %}
+                        <a href="/trilha/questionario/{{ questionario_final.id }}" class="btn-quiz">
+                            {% if questionario_final.aprovado %}Revisar final{% else %}Responder final{% endif %}
+                        </a>
+                    {% endif %}
+
+                    {% if certificado_emitido %}
+                        <a href="/trilha/certificado/{{ id_curso }}" class="btn-quiz certificate">
+                            Ver certificado
+                        </a>
+                    {% else %}
+                        <span class="btn-quiz disabled">Certificado bloqueado</span>
+                    {% endif %}
+                </div>
+            </section>
+        {% endif %}
     </main>
 
     <script>

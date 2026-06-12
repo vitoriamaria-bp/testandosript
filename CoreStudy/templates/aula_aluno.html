@@ -25,7 +25,7 @@
                 <strong>Core Study</strong>
             </div>
 
-            <a href="javascript:history.back()" class="student-back-link" title="Voltar para o curso">
+            <a href="/trilha/curso/{{ id_curso }}" class="student-back-link" title="Voltar para o curso">
                 <span aria-hidden="true">←</span>
                 Voltar
             </a>
@@ -64,8 +64,22 @@
             </div>
 
             <section class="lesson-title-display">
-                <span class="lesson-eyebrow">🎬 Aula da trilha</span>
-                <h1>{{ aula[1] }}</h1>
+                <div class="lesson-title-header-row">
+                    <div>
+                        <span class="lesson-eyebrow">🎬 Aula da trilha</span>
+                        <h1>{{ aula[1] }}</h1>
+                    </div>
+
+                    <form method="POST" action="{% if aula_concluida %}/trilha/aula/{{ aula[0] }}/pendente{% else %}/trilha/aula/{{ aula[0] }}/concluir{% endif %}" class="lesson-progress-form">
+                        <button type="submit" class="btn-lesson-progress {% if aula_concluida %}completed{% else %}pending{% endif %}">
+                            {% if aula_concluida %}
+                                Marcar como pendente
+                            {% else %}
+                                Marcar aula como concluída
+                            {% endif %}
+                        </button>
+                    </form>
+                </div>
             </section>
 
             <nav class="tabs-nav-bar" aria-label="Informações da aula">
@@ -130,9 +144,9 @@
 
             <div class="playlist-list">
                 {% for outra_aula in todas_aulas_modulo %}
-                    <a href="/trilha/aula/{{ outra_aula[0] }}" class="playlist-link {% if outra_aula[0] == aula[0] %}active{% endif %}">
+                    <a href="/trilha/aula/{{ outra_aula[0] }}" class="playlist-link {% if outra_aula[0] == aula[0] %}active{% endif %} {% if outra_aula[2] %}completed{% endif %}">
                         <span class="playlist-status" aria-hidden="true">
-                            {% if outra_aula[0] == aula[0] %}▶{% else %}●{% endif %}
+                            {% if outra_aula[0] == aula[0] %}▶{% elif outra_aula[2] %}✓{% else %}●{% endif %}
                         </span>
 
                         <span class="playlist-title">{{ outra_aula[1] }}</span>
