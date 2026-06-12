@@ -63,26 +63,6 @@ O projeto foi preparado para apresentação com uma base educacional pronta, inc
 
 ---
 
-## Logins de demonstração
-
-### Aluno
-
-```text
-E-mail: teste@gmail.com
-Senha: 12345678
-```
-
-### Administrador
-
-```text
-Login: admin
-Senha: admin
-```
-
-> O administrador é validado diretamente pelo sistema no login. Ele não fica cadastrado em `tbl_usuarios`.
-
----
-
 ## Banco de dados
 
 O banco principal é:
@@ -344,4 +324,3 @@ testandosript/
 ## Finalidade
 
 Projeto desenvolvido para fins acadêmicos e educacionais.
-
