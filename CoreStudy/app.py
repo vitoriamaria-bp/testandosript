@@ -1,4 +1,6 @@
-from flask import Flask, flash, redirect, render_template, request, session
+from datetime import datetime, timedelta
+
+from flask import Flask, flash, jsonify, redirect, render_template, request, session
 from mysql.connector import IntegrityError
 
 from conexao import conectar, inicializar_banco
@@ -205,6 +207,210 @@ def aplicar_correcao_questionario(questoes, respostas_map, nota_minima, resumo=N
         "aprovado": aprovado,
         "correcoes": correcoes,
     }
+
+
+def quantidade_perguntas_questionario(tipo_questionario):
+    return 10 if tipo_questionario == "CURSO" else 5
+
+
+def status_questionario_aluno(cursor, id_usuario, id_questionario, nota_minima=70):
+    cursor.execute(
+        """
+        SELECT nota, aprovado, dt_tentativa
+        FROM tbl_tentativas_questionario
+        WHERE fk_tbl_usuarios_id_usuario = %s
+          AND fk_tbl_questionarios_id_questionario = %s
+        ORDER BY id_tentativa DESC
+        """,
+        (id_usuario, id_questionario),
+    )
+    tentativas = cursor.fetchall()
+    notas = [tentativa[0] for tentativa in tentativas]
+    ultima = tentativas[0] if tentativas else None
+    aprovado = any(bool(tentativa[1]) and tentativa[0] >= nota_minima for tentativa in tentativas)
+    agora = datetime.now()
+    recentes = [
+        tentativa
+        for tentativa in tentativas
+        if tentativa[2] and tentativa[2] >= agora - timedelta(days=7)
+    ]
+    usadas = 0 if aprovado else min(len(recentes), 3)
+    restantes = 3 if aprovado else max(0, 3 - usadas)
+    liberado_em = None
+    bloqueado = False
+
+    if not aprovado and usadas >= 3 and recentes:
+        liberado_em = max(tentativa[2] for tentativa in recentes) + timedelta(days=7)
+        bloqueado = liberado_em > agora
+
+        if not bloqueado:
+            usadas = 0
+            restantes = 3
+            liberado_em = None
+
+    status = "aprovado" if aprovado else "bloqueado temporariamente" if bloqueado else "pendente"
+
+    return {
+        "tentativas_usadas": usadas,
+        "tentativas_restantes": restantes,
+        "ultima_nota": ultima[0] if ultima else None,
+        "maior_nota": max(notas) if notas else None,
+        "aprovado": aprovado,
+        "bloqueado": bloqueado,
+        "status": status,
+        "liberado_em": liberado_em,
+    }
+
+
+def buscar_questoes_questionario(cursor, id_questionario, quantidade=None, ids_questoes=None, evitar_ids=None):
+    parametros = [id_questionario]
+    filtro_ids = ""
+    limite = ""
+
+    if ids_questoes:
+        placeholders = ", ".join(["%s"] * len(ids_questoes))
+        filtro_ids = f" AND id_questao IN ({placeholders})"
+        parametros.extend(ids_questoes)
+        ordem = f"ORDER BY FIELD(id_questao, {placeholders})"
+        parametros.extend(ids_questoes)
+    else:
+        ordem = "ORDER BY RAND()"
+
+        if evitar_ids:
+            placeholders = ", ".join(["%s"] * len(evitar_ids))
+            filtro_ids = f" AND id_questao NOT IN ({placeholders})"
+            parametros.extend(evitar_ids)
+
+        if quantidade:
+            limite = " LIMIT %s"
+            parametros.append(quantidade)
+
+    cursor.execute(
+        f"""
+        SELECT id_questao, enunciado_questao, explicacao_questao
+        FROM tbl_questoes
+        WHERE fk_tbl_questionarios_id_questionario = %s
+        {filtro_ids}
+        {ordem}
+        {limite}
+        """,
+        tuple(parametros),
+    )
+    questoes_raw = cursor.fetchall()
+
+    if quantidade and not ids_questoes and evitar_ids and len(questoes_raw) < quantidade:
+        faltam = quantidade - len(questoes_raw)
+        ids_ja_escolhidos = [questao[0] for questao in questoes_raw]
+        parametros_fallback = [id_questionario]
+        filtro_fallback = ""
+
+        ids_bloqueados = ids_ja_escolhidos
+        if ids_bloqueados:
+            placeholders = ", ".join(["%s"] * len(ids_bloqueados))
+            filtro_fallback = f" AND id_questao NOT IN ({placeholders})"
+            parametros_fallback.extend(ids_bloqueados)
+
+        parametros_fallback.append(faltam)
+        cursor.execute(
+            f"""
+            SELECT id_questao, enunciado_questao, explicacao_questao
+            FROM tbl_questoes
+            WHERE fk_tbl_questionarios_id_questionario = %s
+            {filtro_fallback}
+            ORDER BY RAND()
+            LIMIT %s
+            """,
+            tuple(parametros_fallback),
+        )
+        questoes_raw.extend(cursor.fetchall())
+
+    questoes = []
+
+    for questao in questoes_raw:
+        cursor.execute(
+            """
+            SELECT id_alternativa, texto_alternativa, alternativa_correta
+            FROM tbl_alternativas
+            WHERE fk_tbl_questoes_id_questao = %s
+            ORDER BY RAND()
+            """,
+            (questao[0],),
+        )
+        questoes.append(
+            {
+                "id": questao[0],
+                "enunciado": questao[1],
+                "explicacao": questao[2],
+                "alternativas": cursor.fetchall(),
+            }
+        )
+
+    return questoes
+
+
+def buscar_cursos_para_aluno(cursor, id_usuario, apenas_iniciados=False):
+    filtro_iniciados = """
+            AND (
+                ci.id_inicio IS NOT NULL
+                OR cert.id_certificado IS NOT NULL
+                OR ac.fk_tbl_aulas_id_aula IS NOT NULL
+            )
+    """ if apenas_iniciados else ""
+
+    cursor.execute(
+        f"""
+        SELECT c.id_curso, c.titulo_curso, c.fk_tbl_categoria_id_categoria,
+               c.carga_hora_curso, cat.nome_categoria,
+               COUNT(DISTINCT a.id_aula) AS total_aulas,
+               COUNT(DISTINCT ac.fk_tbl_aulas_id_aula) AS aulas_concluidas,
+               CASE WHEN ci.id_inicio IS NULL THEN 0 ELSE 1 END AS iniciado,
+               CASE WHEN cert.id_certificado IS NULL THEN 0 ELSE 1 END AS certificado
+        FROM tbl_cursos c
+        LEFT JOIN tbl_categoria cat
+            ON c.fk_tbl_categoria_id_categoria = cat.id_categoria
+        LEFT JOIN tbl_modulos m
+            ON m.fk_tbl_cursos_id_curso = c.id_curso
+        LEFT JOIN tbl_aulas a
+            ON a.fk_tbl_modulos_id_modulo = m.id_modulo
+        LEFT JOIN tbl_aulas_concluidas ac
+            ON ac.fk_tbl_aulas_id_aula = a.id_aula
+           AND ac.fk_tbl_usuarios_id_usuario = %s
+        LEFT JOIN tbl_cursos_iniciados ci
+            ON ci.fk_tbl_cursos_id_curso = c.id_curso
+           AND ci.fk_tbl_usuarios_id_usuario = %s
+        LEFT JOIN tbl_certificados cert
+            ON cert.fk_tbl_cursos_id_curso = c.id_curso
+           AND cert.fk_tbl_usuarios_id_usuario = %s
+        WHERE 1 = 1
+        {filtro_iniciados}
+        GROUP BY c.id_curso, c.titulo_curso, c.fk_tbl_categoria_id_categoria,
+                 c.carga_hora_curso, cat.nome_categoria, ci.id_inicio, cert.id_certificado
+        ORDER BY c.id_curso DESC
+        """,
+        (id_usuario, id_usuario, id_usuario),
+    )
+    cursos = []
+
+    for curso in cursor.fetchall():
+        total_aulas = curso[5] or 0
+        aulas_concluidas = curso[6] or 0
+        percentual = round((aulas_concluidas / total_aulas) * 100) if total_aulas else 0
+
+        cursos.append(
+            {
+                "id": curso[0],
+                "titulo": curso[1],
+                "carga_hora": curso[3],
+                "categoria": curso[4] if curso[4] else "Geral",
+                "total_aulas": total_aulas,
+                "aulas_concluidas": aulas_concluidas,
+                "percentual": percentual,
+                "iniciado": bool(curso[7]),
+                "certificado": bool(curso[8]),
+            }
+        )
+
+    return cursos
 
 
 def email_em_uso(cursor, email, id_usuario=None):
@@ -609,6 +815,484 @@ def excluir_usuario_admin(id_usuario):
     return redirect("/admin/usuarios")
 
 
+@app.route("/admin/questionarios")
+def questionarios_admin():
+    bloqueio = proteger_admin()
+    if bloqueio:
+        return bloqueio
+
+    conexao = None
+    cursor = None
+
+    try:
+        conexao = conectar()
+        cursor = conexao.cursor()
+        cursor.execute(
+            """
+            SELECT q.id_questionario, q.titulo_questionario, q.tipo_questionario,
+                   q.nota_minima, c.titulo_curso, m.titulo_modulo,
+                   COUNT(DISTINCT p.id_questao) AS total_perguntas
+            FROM tbl_questionarios q
+            INNER JOIN tbl_cursos c
+                ON q.fk_tbl_cursos_id_curso = c.id_curso
+            LEFT JOIN tbl_modulos m
+                ON q.fk_tbl_modulos_id_modulo = m.id_modulo
+            LEFT JOIN tbl_questoes p
+                ON p.fk_tbl_questionarios_id_questionario = q.id_questionario
+            GROUP BY q.id_questionario, q.titulo_questionario, q.tipo_questionario,
+                     q.nota_minima, c.titulo_curso, m.titulo_modulo
+            ORDER BY c.titulo_curso ASC, q.tipo_questionario ASC, q.id_questionario ASC
+            """
+        )
+        return render_template("questionarios_admin.html", questionarios=cursor.fetchall())
+
+    except Exception as erro:
+        app.logger.exception("Erro ao listar questionários admin: %s", erro)
+        flash("Erro ao carregar questionários.", "danger")
+        return redirect("/admin")
+
+    finally:
+        fechar_banco(conexao, cursor)
+
+
+@app.route("/admin/adicionar-questionario", methods=["GET", "POST"])
+def adicionar_questionario_admin():
+    bloqueio = proteger_admin()
+    if bloqueio:
+        return bloqueio
+
+    conexao = None
+    cursor = None
+
+    try:
+        conexao = conectar()
+        cursor = conexao.cursor()
+
+        if request.method == "POST":
+            titulo = request.form.get("titulo", "").strip()
+            tipo = request.form.get("tipo", "").strip().upper()
+            id_curso = request.form.get("id_curso")
+            id_modulo = request.form.get("id_modulo") or None
+            nota_minima = request.form.get("nota_minima", "70")
+
+            if any(campo_vazio(valor) for valor in [titulo, tipo, id_curso, nota_minima]):
+                return erro_validacao("Preencha os campos obrigatórios.", "/admin/adicionar-questionario")
+
+            if tipo not in ["MODULO", "CURSO"]:
+                return erro_validacao("Tipo de questionário inválido.", "/admin/adicionar-questionario")
+
+            try:
+                nota_minima_int = int(nota_minima)
+            except ValueError:
+                return erro_validacao("Nota mínima inválida.", "/admin/adicionar-questionario")
+
+            if nota_minima_int < 1 or nota_minima_int > 100:
+                return erro_validacao("A nota mínima deve estar entre 1 e 100.", "/admin/adicionar-questionario")
+
+            if tipo == "MODULO" and campo_vazio(id_modulo):
+                return erro_validacao("Selecione o módulo do questionário.", "/admin/adicionar-questionario")
+
+            if tipo == "CURSO":
+                id_modulo = None
+
+            cursor.execute(
+                """
+                INSERT INTO tbl_questionarios
+                (titulo_questionario, tipo_questionario, fk_tbl_modulos_id_modulo,
+                 fk_tbl_cursos_id_curso, nota_minima)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (titulo, tipo, id_modulo, id_curso, nota_minima_int),
+            )
+            id_questionario = cursor.lastrowid
+            conexao.commit()
+
+            flash("Questionário cadastrado. Agora adicione as perguntas.", "success")
+            return redirect(f"/admin/editar-questionario/{id_questionario}?aba=perguntas")
+
+        cursor.execute("SELECT id_curso, titulo_curso FROM tbl_cursos ORDER BY titulo_curso ASC")
+        cursos = cursor.fetchall()
+        cursor.execute(
+            """
+            SELECT m.id_modulo, m.titulo_modulo, c.id_curso, c.titulo_curso
+            FROM tbl_modulos m
+            INNER JOIN tbl_cursos c
+                ON m.fk_tbl_cursos_id_curso = c.id_curso
+            ORDER BY c.titulo_curso ASC, m.titulo_modulo ASC
+            """
+        )
+        modulos = cursor.fetchall()
+        return render_template("adicionar_questionario.html", cursos=cursos, modulos=modulos)
+
+    except Exception as erro:
+        app.logger.exception("Erro ao adicionar questionário: %s", erro)
+        flash("Erro interno ao cadastrar questionário.", "danger")
+        return redirect("/admin/questionarios")
+
+    finally:
+        fechar_banco(conexao, cursor)
+
+
+@app.route("/admin/editar-questionario/<int:id_questionario>", methods=["GET", "POST"])
+def editar_questionario_admin(id_questionario):
+    bloqueio = proteger_admin()
+    if bloqueio:
+        return bloqueio
+
+    conexao = None
+    cursor = None
+
+    try:
+        conexao = conectar()
+        cursor = conexao.cursor()
+        cursor.execute(
+            """
+            SELECT q.id_questionario, q.titulo_questionario, q.tipo_questionario,
+                   q.nota_minima, c.titulo_curso, m.titulo_modulo
+            FROM tbl_questionarios q
+            INNER JOIN tbl_cursos c
+                ON q.fk_tbl_cursos_id_curso = c.id_curso
+            LEFT JOIN tbl_modulos m
+                ON q.fk_tbl_modulos_id_modulo = m.id_modulo
+            WHERE q.id_questionario = %s
+            """,
+            (id_questionario,),
+        )
+        questionario = cursor.fetchone()
+
+        if not questionario:
+            flash("Questionário não encontrado.", "warning")
+            return redirect("/admin/questionarios")
+
+        if request.method == "POST":
+            acao = request.form.get("acao", "dados")
+
+            if acao == "dados":
+                titulo = request.form.get("titulo", "").strip()
+                tipo = request.form.get("tipo", "").strip().upper()
+                id_curso = request.form.get("id_curso")
+                id_modulo = request.form.get("id_modulo") or None
+                nota_minima = request.form.get("nota_minima", "70")
+
+                if any(campo_vazio(valor) for valor in [titulo, tipo, id_curso, nota_minima]):
+                    return erro_validacao("Preencha os campos obrigatórios.", f"/admin/editar-questionario/{id_questionario}")
+
+                if tipo not in ["MODULO", "CURSO"]:
+                    return erro_validacao("Tipo de questionário inválido.", f"/admin/editar-questionario/{id_questionario}")
+
+                try:
+                    nota_minima_int = int(nota_minima)
+                except ValueError:
+                    return erro_validacao("Nota mínima inválida.", f"/admin/editar-questionario/{id_questionario}")
+
+                if nota_minima_int < 1 or nota_minima_int > 100:
+                    return erro_validacao("A nota mínima deve estar entre 1 e 100.", f"/admin/editar-questionario/{id_questionario}")
+
+                if tipo == "MODULO" and campo_vazio(id_modulo):
+                    return erro_validacao("Selecione o módulo do questionário.", f"/admin/editar-questionario/{id_questionario}")
+
+                if tipo == "CURSO":
+                    id_modulo = None
+
+                cursor.execute(
+                    """
+                    UPDATE tbl_questionarios
+                    SET titulo_questionario = %s,
+                        tipo_questionario = %s,
+                        fk_tbl_modulos_id_modulo = %s,
+                        fk_tbl_cursos_id_curso = %s,
+                        nota_minima = %s
+                    WHERE id_questionario = %s
+                    """,
+                    (titulo, tipo, id_modulo, id_curso, nota_minima_int, id_questionario),
+                )
+                conexao.commit()
+                flash("Questionário atualizado.", "success")
+                return redirect(f"/admin/editar-questionario/{id_questionario}")
+
+            if acao == "pergunta":
+                enunciado = request.form.get("enunciado", "").strip()
+                explicacao = request.form.get("explicacao", "").strip()
+                alternativas = [
+                    request.form.get("alternativa_0", "").strip(),
+                    request.form.get("alternativa_1", "").strip(),
+                    request.form.get("alternativa_2", "").strip(),
+                    request.form.get("alternativa_3", "").strip(),
+                ]
+                correta = request.form.get("correta")
+
+                if campo_vazio(enunciado) or any(campo_vazio(valor) for valor in alternativas):
+                    return erro_validacao("Preencha a pergunta e as quatro alternativas.", f"/admin/editar-questionario/{id_questionario}?aba=perguntas")
+
+                try:
+                    correta_indice = int(correta)
+                except (TypeError, ValueError):
+                    return erro_validacao("Selecione a alternativa correta.", f"/admin/editar-questionario/{id_questionario}?aba=perguntas")
+
+                if correta_indice < 0 or correta_indice > 3:
+                    return erro_validacao("Alternativa correta inválida.", f"/admin/editar-questionario/{id_questionario}?aba=perguntas")
+
+                cursor.execute(
+                    """
+                    INSERT INTO tbl_questoes
+                    (enunciado_questao, explicacao_questao, fk_tbl_questionarios_id_questionario)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (enunciado, explicacao or None, id_questionario),
+                )
+                id_questao = cursor.lastrowid
+
+                cursor.execute(
+                    """
+                    INSERT INTO tbl_perguntas
+                    (enunciado_pergunta, explicacao_pergunta, fk_tbl_questionarios_id_questionario)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (enunciado, explicacao or None, id_questionario),
+                )
+
+                for indice, alternativa in enumerate(alternativas):
+                    cursor.execute(
+                        """
+                        INSERT INTO tbl_alternativas
+                        (texto_alternativa, alternativa_correta, fk_tbl_questoes_id_questao)
+                        VALUES (%s, %s, %s)
+                        """,
+                        (alternativa, 1 if indice == correta_indice else 0, id_questao),
+                    )
+
+                conexao.commit()
+                flash("Pergunta adicionada ao questionário.", "success")
+                return redirect(f"/admin/editar-questionario/{id_questionario}?aba=perguntas")
+
+            if acao == "editar_pergunta":
+                id_questao = request.form.get("id_questao")
+                enunciado = request.form.get("enunciado", "").strip()
+                explicacao = request.form.get("explicacao", "").strip()
+                correta = request.form.get("correta")
+
+                cursor.execute(
+                    """
+                    SELECT enunciado_questao
+                    FROM tbl_questoes
+                    WHERE id_questao = %s
+                      AND fk_tbl_questionarios_id_questionario = %s
+                    """,
+                    (id_questao, id_questionario),
+                )
+                questao_existente = cursor.fetchone()
+
+                if not questao_existente:
+                    return erro_validacao("Pergunta não encontrada.", f"/admin/editar-questionario/{id_questionario}?aba=perguntas")
+
+                cursor.execute(
+                    """
+                    SELECT id_alternativa
+                    FROM tbl_alternativas
+                    WHERE fk_tbl_questoes_id_questao = %s
+                    ORDER BY id_alternativa ASC
+                    """,
+                    (id_questao,),
+                )
+                alternativas_ids = [linha[0] for linha in cursor.fetchall()]
+
+                alternativas = []
+                for id_alternativa in alternativas_ids:
+                    texto = request.form.get(f"alternativa_{id_alternativa}", "").strip()
+                    alternativas.append((id_alternativa, texto))
+
+                if campo_vazio(enunciado) or any(campo_vazio(texto) for _, texto in alternativas):
+                    return erro_validacao("Preencha a pergunta e todas as alternativas.", f"/admin/editar-questionario/{id_questionario}?aba=perguntas")
+
+                try:
+                    correta_id = int(correta)
+                except (TypeError, ValueError):
+                    return erro_validacao("Selecione a alternativa correta.", f"/admin/editar-questionario/{id_questionario}?aba=perguntas")
+
+                if correta_id not in alternativas_ids:
+                    return erro_validacao("Alternativa correta inválida.", f"/admin/editar-questionario/{id_questionario}?aba=perguntas")
+
+                cursor.execute(
+                    """
+                    UPDATE tbl_questoes
+                    SET enunciado_questao = %s,
+                        explicacao_questao = %s
+                    WHERE id_questao = %s
+                    """,
+                    (enunciado, explicacao or None, id_questao),
+                )
+                cursor.execute(
+                    """
+                    UPDATE tbl_perguntas
+                    SET enunciado_pergunta = %s,
+                        explicacao_pergunta = %s
+                    WHERE fk_tbl_questionarios_id_questionario = %s
+                      AND enunciado_pergunta = %s
+                    LIMIT 1
+                    """,
+                    (enunciado, explicacao or None, id_questionario, questao_existente[0]),
+                )
+
+                for id_alternativa, texto in alternativas:
+                    cursor.execute(
+                        """
+                        UPDATE tbl_alternativas
+                        SET texto_alternativa = %s,
+                            alternativa_correta = %s
+                        WHERE id_alternativa = %s
+                        """,
+                        (texto, 1 if id_alternativa == correta_id else 0, id_alternativa),
+                    )
+
+                conexao.commit()
+                flash("Pergunta atualizada.", "success")
+                return redirect(f"/admin/editar-questionario/{id_questionario}?aba=perguntas")
+
+        cursor.execute(
+            """
+            SELECT p.id_questao, p.enunciado_questao, p.explicacao_questao
+            FROM tbl_questoes p
+            WHERE p.fk_tbl_questionarios_id_questionario = %s
+            ORDER BY p.id_questao ASC
+            """,
+            (id_questionario,),
+        )
+        perguntas = []
+
+        for pergunta in cursor.fetchall():
+            cursor.execute(
+                """
+                SELECT id_alternativa, texto_alternativa, alternativa_correta
+                FROM tbl_alternativas
+                WHERE fk_tbl_questoes_id_questao = %s
+                ORDER BY id_alternativa ASC
+                """,
+                (pergunta[0],),
+            )
+            perguntas.append(
+                {
+                    "id": pergunta[0],
+                    "enunciado": pergunta[1],
+                    "explicacao": pergunta[2],
+                    "alternativas": cursor.fetchall(),
+                }
+            )
+
+        cursor.execute("SELECT id_curso, titulo_curso FROM tbl_cursos ORDER BY titulo_curso ASC")
+        cursos = cursor.fetchall()
+        cursor.execute(
+            """
+            SELECT m.id_modulo, m.titulo_modulo, c.id_curso, c.titulo_curso
+            FROM tbl_modulos m
+            INNER JOIN tbl_cursos c
+                ON m.fk_tbl_cursos_id_curso = c.id_curso
+            ORDER BY c.titulo_curso ASC, m.titulo_modulo ASC
+            """
+        )
+        modulos = cursor.fetchall()
+
+        return render_template(
+            "editar_questionario.html",
+            questionario=questionario,
+            perguntas=perguntas,
+            cursos=cursos,
+            modulos=modulos,
+            aba=request.args.get("aba", "dados"),
+        )
+
+    except Exception as erro:
+        app.logger.exception("Erro ao gerenciar perguntas: %s", erro)
+        flash("Erro interno ao gerenciar perguntas.", "danger")
+        return redirect("/admin/questionarios")
+
+    finally:
+        fechar_banco(conexao, cursor)
+
+
+@app.route("/admin/questionario/<int:id_questionario>/perguntas")
+def perguntas_questionario_admin(id_questionario):
+    return redirect(f"/admin/editar-questionario/{id_questionario}?aba=perguntas")
+
+
+@app.route("/admin/excluir-questionario/<int:id_questionario>", methods=["POST"])
+def excluir_questionario_admin(id_questionario):
+    bloqueio = proteger_admin()
+    if bloqueio:
+        return bloqueio
+
+    conexao = None
+    cursor = None
+
+    try:
+        conexao = conectar()
+        cursor = conexao.cursor()
+        cursor.execute("DELETE FROM tbl_questionarios WHERE id_questionario = %s", (id_questionario,))
+        conexao.commit()
+        flash("Questionário excluído.", "success")
+
+    except Exception as erro:
+        app.logger.exception("Erro ao excluir questionário: %s", erro)
+        flash("Erro ao excluir questionário.", "danger")
+
+    finally:
+        fechar_banco(conexao, cursor)
+
+    return redirect("/admin/questionarios")
+
+
+@app.route("/admin/excluir-pergunta/<int:id_questao>", methods=["POST"])
+def excluir_pergunta_admin(id_questao):
+    bloqueio = proteger_admin()
+    if bloqueio:
+        return bloqueio
+
+    conexao = None
+    cursor = None
+    id_questionario = None
+
+    try:
+        conexao = conectar()
+        cursor = conexao.cursor()
+        cursor.execute(
+            """
+            SELECT fk_tbl_questionarios_id_questionario, enunciado_questao
+            FROM tbl_questoes
+            WHERE id_questao = %s
+            """,
+            (id_questao,),
+        )
+        resultado = cursor.fetchone()
+        id_questionario = resultado[0] if resultado else None
+        enunciado = resultado[1] if resultado else None
+        cursor.execute("DELETE FROM tbl_questoes WHERE id_questao = %s", (id_questao,))
+
+        if id_questionario and enunciado:
+            cursor.execute(
+                """
+                DELETE FROM tbl_perguntas
+                WHERE fk_tbl_questionarios_id_questionario = %s
+                  AND enunciado_pergunta = %s
+                LIMIT 1
+                """,
+                (id_questionario, enunciado),
+            )
+
+        conexao.commit()
+        flash("Pergunta excluída.", "success")
+
+    except Exception as erro:
+        app.logger.exception("Erro ao excluir pergunta: %s", erro)
+        flash("Erro ao excluir pergunta.", "danger")
+
+    finally:
+        fechar_banco(conexao, cursor)
+
+    if id_questionario:
+        return redirect(f"/admin/editar-questionario/{id_questionario}?aba=perguntas")
+
+    return redirect("/admin/questionarios")
+
+
 @app.route("/aluno")
 def aluno():
     bloqueio = proteger_aluno()
@@ -621,51 +1305,13 @@ def aluno():
     try:
         conexao = conectar()
         cursor = conexao.cursor()
-        cursor.execute(
-            """
-            SELECT c.id_curso, c.titulo_curso, c.fk_tbl_categoria_id_categoria,
-                   c.carga_hora_curso, cat.nome_categoria,
-                   COUNT(DISTINCT a.id_aula) AS total_aulas,
-                   COUNT(DISTINCT ac.fk_tbl_aulas_id_aula) AS aulas_concluidas
-            FROM tbl_cursos c
-            LEFT JOIN tbl_categoria cat
-                ON c.fk_tbl_categoria_id_categoria = cat.id_categoria
-            LEFT JOIN tbl_modulos m
-                ON m.fk_tbl_cursos_id_curso = c.id_curso
-            LEFT JOIN tbl_aulas a
-                ON a.fk_tbl_modulos_id_modulo = m.id_modulo
-            LEFT JOIN tbl_aulas_concluidas ac
-                ON ac.fk_tbl_aulas_id_aula = a.id_aula
-               AND ac.fk_tbl_usuarios_id_usuario = %s
-            GROUP BY c.id_curso, c.titulo_curso, c.fk_tbl_categoria_id_categoria,
-                     c.carga_hora_curso, cat.nome_categoria
-            ORDER BY c.id_curso DESC
-            """,
-            (session["id_usuario"],),
-        )
-        cursos = []
-
-        for curso in cursor.fetchall():
-            total_aulas = curso[5] or 0
-            aulas_concluidas = curso[6] or 0
-            percentual = round((aulas_concluidas / total_aulas) * 100) if total_aulas else 0
-
-            cursos.append(
-                {
-                    "id": curso[0],
-                    "titulo": curso[1],
-                    "carga_hora": curso[3],
-                    "categoria": curso[4] if curso[4] else "Geral",
-                    "total_aulas": total_aulas,
-                    "aulas_concluidas": aulas_concluidas,
-                    "percentual": percentual,
-                }
-            )
+        cursos = buscar_cursos_para_aluno(cursor, session["id_usuario"])
 
         return render_template(
             "aluno.html",
             nome_usuario=session.get("nome_usuario"),
             cursos=cursos,
+            meus_cursos=False,
         )
 
     except Exception as erro:
@@ -675,6 +1321,42 @@ def aluno():
             "aluno.html",
             nome_usuario=session.get("nome_usuario"),
             cursos=[],
+            meus_cursos=False,
+        )
+
+    finally:
+        fechar_banco(conexao, cursor)
+
+
+@app.route("/meus-cursos")
+def meus_cursos():
+    bloqueio = proteger_aluno()
+    if bloqueio:
+        return bloqueio
+
+    conexao = None
+    cursor = None
+
+    try:
+        conexao = conectar()
+        cursor = conexao.cursor()
+        cursos = buscar_cursos_para_aluno(cursor, session["id_usuario"], apenas_iniciados=True)
+
+        return render_template(
+            "aluno.html",
+            nome_usuario=session.get("nome_usuario"),
+            cursos=cursos,
+            meus_cursos=True,
+        )
+
+    except Exception as erro:
+        app.logger.exception("Erro em /meus-cursos: %s", erro)
+        flash("Erro interno ao carregar seus cursos.", "danger")
+        return render_template(
+            "aluno.html",
+            nome_usuario=session.get("nome_usuario"),
+            cursos=[],
+            meus_cursos=True,
         )
 
     finally:
@@ -1611,6 +2293,17 @@ def visualizar_curso(id_curso):
 
         cursor.execute(
             """
+            INSERT INTO tbl_cursos_iniciados
+            (fk_tbl_usuarios_id_usuario, fk_tbl_cursos_id_curso)
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE dt_ultimo_acesso = CURRENT_TIMESTAMP
+            """,
+            (session["id_usuario"], id_curso),
+        )
+        conexao.commit()
+
+        cursor.execute(
+            """
             SELECT id_modulo, titulo_modulo
             FROM tbl_modulos
             WHERE fk_tbl_cursos_id_curso = %s
@@ -1699,17 +2392,19 @@ def visualizar_curso(id_curso):
 
             if questionario_modulo:
                 modulo_liberado = aulas_modulo_concluidas(cursor, session["id_usuario"], modulo[0])
-                modulo_aprovado = questionario_aprovado(
+                status_avaliacao = status_questionario_aluno(
                     cursor,
                     session["id_usuario"],
                     questionario_modulo[0],
+                    questionario_modulo[2],
                 )
                 questionario_modulo_info = {
                     "id": questionario_modulo[0],
                     "titulo": questionario_modulo[1],
                     "nota_minima": questionario_modulo[2],
                     "liberado": modulo_liberado,
-                    "aprovado": modulo_aprovado,
+                    "aprovado": status_avaliacao["aprovado"],
+                    "status": status_avaliacao,
                 }
 
             modulos_com_aulas.append(
@@ -1744,12 +2439,19 @@ def visualizar_curso(id_curso):
                 session["id_usuario"],
                 questionario_final_raw[0],
             )
+            status_final = status_questionario_aluno(
+                cursor,
+                session["id_usuario"],
+                questionario_final_raw[0],
+                questionario_final_raw[2],
+            )
             questionario_final = {
                 "id": questionario_final_raw[0],
                 "titulo": questionario_final_raw[1],
                 "nota_minima": questionario_final_raw[2],
                 "liberado": final_liberado,
                 "aprovado": final_aprovado,
+                "status": status_final,
             }
 
         cursor.execute(
@@ -1838,6 +2540,35 @@ def visualizar_aula(id_aula):
 
         cursor.execute(
             """
+            SELECT a.id_aula, a.titulo_aula,
+                   CASE WHEN ac.id_conclusao IS NULL THEN 0 ELSE 1 END AS concluida
+            FROM tbl_aulas a
+            INNER JOIN tbl_modulos m
+                ON a.fk_tbl_modulos_id_modulo = m.id_modulo
+            LEFT JOIN tbl_aulas_concluidas ac
+                ON ac.fk_tbl_aulas_id_aula = a.id_aula
+               AND ac.fk_tbl_usuarios_id_usuario = %s
+            WHERE m.fk_tbl_cursos_id_curso = %s
+            ORDER BY m.id_modulo ASC, a.id_aula ASC
+            """,
+            (session["id_usuario"], id_curso),
+        )
+        aulas_curso = cursor.fetchall()
+        aula_anterior = None
+        proxima_aula = None
+
+        for indice, aula_curso in enumerate(aulas_curso):
+            if aula_curso[0] == id_aula:
+                if indice > 0:
+                    aula_anterior = aulas_curso[indice - 1]
+
+                if indice + 1 < len(aulas_curso):
+                    proxima_aula = aulas_curso[indice + 1]
+
+                break
+
+        cursor.execute(
+            """
             SELECT id_material, nome_material, tipo_material, tam_arqu_material, url_material
             FROM tbl_materiais
             WHERE fk_tbl_aulas_id_aula = %s
@@ -1852,6 +2583,8 @@ def visualizar_aula(id_aula):
             materiais=materiais,
             todas_aulas_modulo=todas_aulas_modulo,
             aula_concluida=aula_concluida,
+            aula_anterior=aula_anterior,
+            proxima_aula=proxima_aula,
             id_curso=id_curso,
             nome_usuario=session.get("nome_usuario", "Aluno"),
         )
@@ -1992,40 +2725,32 @@ def responder_questionario(id_questionario):
                 flash("Aprove os questionários dos módulos antes do questionário final.", "warning")
                 return redirect(f"/trilha/curso/{id_curso}")
 
-        cursor.execute(
-            """
-            SELECT id_questao, enunciado_questao, explicacao_questao
-            FROM tbl_questoes
-            WHERE fk_tbl_questionarios_id_questionario = %s
-            ORDER BY id_questao ASC
-            """,
-            (id_questionario,),
+        quantidade_perguntas = quantidade_perguntas_questionario(tipo_questionario)
+        status_avaliacao = status_questionario_aluno(
+            cursor,
+            session["id_usuario"],
+            id_questionario,
+            questionario[5],
         )
-        questoes_raw = cursor.fetchall()
+        resultado = None
+        tentativa_revisao = None
         questoes = []
 
-        for questao in questoes_raw:
-            cursor.execute(
-                """
-                SELECT id_alternativa, texto_alternativa, alternativa_correta
-                FROM tbl_alternativas
-                WHERE fk_tbl_questoes_id_questao = %s
-                ORDER BY RAND()
-                """,
-                (questao[0],),
-            )
-            questoes.append(
-                {
-                    "id": questao[0],
-                    "enunciado": questao[1],
-                    "explicacao": questao[2],
-                    "alternativas": cursor.fetchall(),
-                }
-            )
-
-        resultado = None
-
         if request.method == "POST":
+            if status_avaliacao["bloqueado"]:
+                flash("Você usou as 3 tentativas. Aguarde a liberação do novo ciclo.", "warning")
+                return redirect(f"/trilha/questionario/{id_questionario}")
+
+            ids_postados = [
+                int(chave.replace("questao_", ""))
+                for chave in request.form
+                if chave.startswith("questao_")
+            ]
+            questoes = buscar_questoes_questionario(
+                cursor,
+                id_questionario,
+                ids_questoes=ids_postados,
+            )
             respostas_map = {}
             for questao in questoes:
                 alternativa_id = request.form.get(f"questao_{questao['id']}")
@@ -2067,6 +2792,16 @@ def responder_questionario(id_questionario):
                     """,
                     (id_tentativa, questao_id, alternativa_id),
                 )
+                cursor.execute(
+                    """
+                    INSERT INTO tbl_respostas_tentativa
+                    (fk_tbl_tentativas_questionario_id_tentativa,
+                     fk_tbl_perguntas_id_pergunta,
+                     fk_tbl_alternativas_id_alternativa)
+                    VALUES (%s, NULL, %s)
+                    """,
+                    (id_tentativa, alternativa_id),
+                )
 
             if aprovado and tipo_questionario == "CURSO":
                 cursor.execute(
@@ -2079,6 +2814,12 @@ def responder_questionario(id_questionario):
                 )
 
             conexao.commit()
+            status_avaliacao = status_questionario_aluno(
+                cursor,
+                session["id_usuario"],
+                id_questionario,
+                questionario[5],
+            )
 
         elif request.args.get("nova") != "1":
             cursor.execute(
@@ -2095,6 +2836,7 @@ def responder_questionario(id_questionario):
             tentativa = cursor.fetchone()
 
             if tentativa:
+                tentativa_revisao = tentativa[0]
                 cursor.execute(
                     """
                     SELECT fk_tbl_questoes_id_questao, fk_tbl_alternativas_id_alternativa
@@ -2109,6 +2851,11 @@ def responder_questionario(id_questionario):
                 }
 
                 if respostas_map:
+                    questoes = buscar_questoes_questionario(
+                        cursor,
+                        id_questionario,
+                        ids_questoes=list(respostas_map.keys()),
+                    )
                     resultado = aplicar_correcao_questionario(
                         questoes,
                         respostas_map,
@@ -2121,11 +2868,36 @@ def responder_questionario(id_questionario):
                         },
                     )
 
+        if not questoes:
+            evitar_ids = []
+            cursor.execute(
+                """
+                SELECT r.fk_tbl_questoes_id_questao
+                FROM tbl_respostas_questionario r
+                INNER JOIN tbl_tentativas_questionario t
+                    ON r.fk_tbl_tentativas_questionario_id_tentativa = t.id_tentativa
+                WHERE t.fk_tbl_usuarios_id_usuario = %s
+                  AND t.fk_tbl_questionarios_id_questionario = %s
+                ORDER BY t.id_tentativa DESC, r.id_resposta ASC
+                LIMIT %s
+                """,
+                (session["id_usuario"], id_questionario, quantidade_perguntas),
+            )
+            evitar_ids = [linha[0] for linha in cursor.fetchall()]
+            questoes = buscar_questoes_questionario(
+                cursor,
+                id_questionario,
+                quantidade=quantidade_perguntas,
+                evitar_ids=evitar_ids,
+            )
+
         return render_template(
             "questionario_aluno.html",
             questionario=questionario,
             questoes=questoes,
             resultado=resultado,
+            status_avaliacao=status_avaliacao,
+            tentativa_revisao=tentativa_revisao,
             nome_usuario=session.get("nome_usuario", "Aluno"),
         )
 
@@ -2133,6 +2905,57 @@ def responder_questionario(id_questionario):
         app.logger.exception("Erro ao responder questionário: %s", erro)
         flash("Erro interno ao carregar o questionário.", "danger")
         return redirect("/aluno")
+
+    finally:
+        fechar_banco(conexao, cursor)
+
+
+@app.route("/trilha/questionario/<int:id_questionario>/iniciar")
+def iniciar_tentativa_questionario(id_questionario):
+    return redirect(f"/trilha/questionario/{id_questionario}?nova=1")
+
+
+@app.route("/trilha/questionario/<int:id_questionario>/resultado")
+def resultado_questionario(id_questionario):
+    return redirect(f"/trilha/questionario/{id_questionario}")
+
+
+@app.route("/trilha/curso/<int:id_curso>/certificado/elegibilidade")
+def verificar_elegibilidade_certificado(id_curso):
+    bloqueio = proteger_aluno()
+    if bloqueio:
+        return bloqueio
+
+    conexao = None
+    cursor = None
+
+    try:
+        conexao = conectar()
+        cursor = conexao.cursor()
+        aulas_ok = aulas_curso_concluidas(cursor, session["id_usuario"], id_curso)
+        modulos_ok = questionarios_modulos_aprovados(cursor, session["id_usuario"], id_curso)
+
+        cursor.execute(
+            """
+            SELECT id_questionario
+            FROM tbl_questionarios
+            WHERE tipo_questionario = 'CURSO'
+              AND fk_tbl_cursos_id_curso = %s
+              AND fk_tbl_modulos_id_modulo IS NULL
+            """,
+            (id_curso,),
+        )
+        final = cursor.fetchone()
+        final_ok = bool(final and questionario_aprovado(cursor, session["id_usuario"], final[0]))
+
+        return jsonify(
+            {
+                "aulas_concluidas": aulas_ok,
+                "questionarios_modulos_aprovados": modulos_ok,
+                "prova_final_aprovada": final_ok,
+                "certificado_liberado": aulas_ok and modulos_ok and final_ok,
+            }
+        )
 
     finally:
         fechar_banco(conexao, cursor)
@@ -2170,7 +2993,7 @@ def certificado_curso(id_curso):
             return redirect(f"/trilha/curso/{id_curso}")
 
         return render_template(
-            "certificado.html",
+            "certificados.html",
             certificado=certificado,
             nome_usuario=session.get("nome_usuario", "Aluno"),
         )
@@ -2179,6 +3002,47 @@ def certificado_curso(id_curso):
         app.logger.exception("Erro ao carregar certificado: %s", erro)
         flash("Erro interno ao carregar o certificado.", "danger")
         return redirect(f"/trilha/curso/{id_curso}")
+
+    finally:
+        fechar_banco(conexao, cursor)
+
+
+@app.route("/certificados")
+def certificados_aluno():
+    bloqueio = proteger_aluno()
+    if bloqueio:
+        return bloqueio
+
+    conexao = None
+    cursor = None
+
+    try:
+        conexao = conectar()
+        cursor = conexao.cursor()
+        cursor.execute(
+            """
+            SELECT cert.id_certificado, c.id_curso, c.titulo_curso,
+                   c.carga_hora_curso, cert.dt_emissao
+            FROM tbl_certificados cert
+            INNER JOIN tbl_cursos c
+                ON cert.fk_tbl_cursos_id_curso = c.id_curso
+            WHERE cert.fk_tbl_usuarios_id_usuario = %s
+            ORDER BY cert.dt_emissao DESC, cert.id_certificado DESC
+            """,
+            (session["id_usuario"],),
+        )
+        certificados = cursor.fetchall()
+
+        return render_template(
+            "certificados.html",
+            certificados=certificados,
+            nome_usuario=session.get("nome_usuario", "Aluno"),
+        )
+
+    except Exception as erro:
+        app.logger.exception("Erro ao carregar certificados: %s", erro)
+        flash("Erro interno ao carregar seus certificados.", "danger")
+        return redirect("/aluno")
 
     finally:
         fechar_banco(conexao, cursor)

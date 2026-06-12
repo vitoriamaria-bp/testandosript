@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Questionário - Core Study{% endblock %}
+{% block header_title %}Editar Questionário{% endblock %}
+
+{% block content %}
+<header class="page-header admin-sticky-actions" style="display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 18px;">
+    <div>
+        <h1 style="font-size: 22px; color: var(--primary-color); font-weight: 700;">{{ questionario[1] }}</h1>
+        <p style="color: var(--text-light); font-size: 13px;">
+            {{ questionario[4] }}{% if questionario[5] %} • {{ questionario[5] }}{% endif %} • {{ perguntas|length }} perguntas
+        </p>
+    </div>
+    <a href="/admin/questionarios" class="btn-secondary admin-compact-btn">← Voltar</a>
+</header>
+
+<div class="content-card admin-quiz-editor">
+    <nav class="admin-submenu" aria-label="Editar questionário">
+        <button type="button" class="admin-submenu-btn {% if aba != 'perguntas' %}active{% endif %}" data-tab="dados">Dados do questionário</button>
+        <button type="button" class="admin-submenu-btn {% if aba == 'perguntas' %}active{% endif %}" data-tab="perguntas">Perguntas</button>
+    </nav>
+
+    <section class="admin-tab-panel {% if aba != 'perguntas' %}active{% endif %}" id="tab-dados">
+        <form action="/admin/editar-questionario/{{ questionario[0] }}" method="POST" class="admin-compact-form">
+            <input type="hidden" name="acao" value="dados">
+
+            <div class="form-group">
+                <label for="titulo">Título</label>
+                <input type="text" id="titulo" name="titulo" value="{{ questionario[1] }}" required>
+            </div>
+
+            <div class="admin-form-grid">
+                <div class="form-group">
+                    <label for="tipo">Tipo</label>
+                    <select id="tipo" name="tipo" required>
+                        <option value="MODULO" {% if questionario[2] == 'MODULO' %}selected{% endif %}>Questionário de módulo</option>
+                        <option value="CURSO" {% if questionario[2] == 'CURSO' %}selected{% endif %}>Prova final do curso</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="nota_minima">Nota mínima (%)</label>
+                    <input type="number" id="nota_minima" name="nota_minima" min="1" max="100" value="{{ questionario[3] }}" required>
+                </div>
+            </div>
+
+            <div class="admin-form-grid">
+                <div class="form-group">
+                    <label for="id_curso">Curso</label>
+                    <select id="id_curso" name="id_curso" required>
+                        {% for curso in cursos %}
+                            <option value="{{ curso[0] }}" {% if curso[1] == questionario[4] %}selected{% endif %}>{{ curso[1] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group" id="moduloGroup">
+                    <label for="id_modulo">Módulo</label>
+                    <select id="id_modulo" name="id_modulo">
+                        <option value="">Selecione o módulo</option>
+                        {% for modulo in modulos %}
+                            <option value="{{ modulo[0] }}" data-curso="{{ modulo[2] }}" {% if modulo[1] == questionario[5] %}selected{% endif %}>{{ modulo[3] }} • {{ modulo[1] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="admin-form-actions">
+                <button type="submit" class="btn-primary admin-compact-btn">Salvar alterações</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="admin-tab-panel {% if aba == 'perguntas' %}active{% endif %}" id="tab-perguntas">
+        <form action="/admin/editar-questionario/{{ questionario[0] }}" method="POST" class="admin-compact-form admin-question-form">
+            <input type="hidden" name="acao" value="pergunta">
+
+            <div class="form-group">
+                <label for="enunciado">Pergunta</label>
+                <textarea id="enunciado" name="enunciado" rows="2" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="explicacao">Explicação da correção</label>
+                <textarea id="explicacao" name="explicacao" rows="2" placeholder="Explique o motivo da resposta correta."></textarea>
+            </div>
+
+            <div class="admin-alternatives-grid">
+                {% for indice in range(4) %}
+                    <div class="form-group admin-alternative-box">
+                        <label for="alternativa_{{ indice }}">Alternativa {{ indice + 1 }}</label>
+                        <input type="text" id="alternativa_{{ indice }}" name="alternativa_{{ indice }}" required>
+                        <label class="admin-correct-choice">
+                            <input type="radio" name="correta" value="{{ indice }}" required>
+                            <span class="admin-correct-marker" aria-hidden="true"></span>
+                            <span>Marcar como correta</span>
+                        </label>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="admin-form-actions">
+                <button type="submit" class="btn-primary admin-compact-btn">Adicionar pergunta</button>
+            </div>
+        </form>
+
+        <div class="admin-question-list">
+            {% for pergunta in perguntas %}
+                <article class="admin-question-edit-card">
+                    <form action="/admin/editar-questionario/{{ questionario[0] }}" method="POST" class="admin-compact-form">
+                        <input type="hidden" name="acao" value="editar_pergunta">
+                        <input type="hidden" name="id_questao" value="{{ pergunta.id }}">
+
+                        <div class="admin-question-edit-head">
+                            <strong>Pergunta #{{ loop.index }}</strong>
+                            <span>{{ pergunta.alternativas|length }} alternativas</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pergunta_{{ pergunta.id }}">Pergunta</label>
+                            <textarea id="pergunta_{{ pergunta.id }}" name="enunciado" rows="2" required>{{ pergunta.enunciado }}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="explicacao_{{ pergunta.id }}">Explicação da correção</label>
+                            <textarea id="explicacao_{{ pergunta.id }}" name="explicacao" rows="2">{{ pergunta.explicacao or '' }}</textarea>
+                        </div>
+
+                        <div class="admin-alternatives-grid">
+                            {% for alternativa in pergunta.alternativas %}
+                                <div class="form-group admin-alternative-box">
+                                    <label for="alternativa_existente_{{ alternativa[0] }}">Alternativa {{ loop.index }}</label>
+                                    <input type="text" id="alternativa_existente_{{ alternativa[0] }}" name="alternativa_{{ alternativa[0] }}" value="{{ alternativa[1] }}" required>
+                                    <label class="admin-correct-choice">
+                                        <input type="radio" name="correta" value="{{ alternativa[0] }}" {% if alternativa[2] %}checked{% endif %} required>
+                                        <span class="admin-correct-marker" aria-hidden="true"></span>
+                                        <span>Correta</span>
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="admin-form-actions">
+                            <button type="submit" class="btn-primary admin-compact-btn">Salvar pergunta</button>
+                            <button type="button" class="btn-primary admin-compact-btn danger" onclick="openDeleteModal('form-pergunta-{{ pergunta.id }}', 'Excluir esta pergunta?')">Excluir</button>
+                        </div>
+                    </form>
+
+                    <form action="/admin/excluir-pergunta/{{ pergunta.id }}" method="POST" id="form-pergunta-{{ pergunta.id }}" hidden></form>
+                </article>
+            {% else %}
+                <div style="padding: 18px; color: var(--text-light); text-align: center;">Nenhuma pergunta cadastrada.</div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const menu = document.querySelector('.sidebar-menu a[href="/admin/questionarios"]');
+        const tipo = document.getElementById("tipo");
+        const moduloGroup = document.getElementById("moduloGroup");
+        const curso = document.getElementById("id_curso");
+        const modulo = document.getElementById("id_modulo");
+        const buttons = document.querySelectorAll(".admin-submenu-btn");
+        const panels = document.querySelectorAll(".admin-tab-panel");
+
+        if (menu) menu.classList.add('active');
+
+        function atualizarModulo() {
+            const isFinal = tipo.value === "CURSO";
+            moduloGroup.style.display = isFinal ? "none" : "block";
+            modulo.required = !isFinal;
+
+            Array.from(modulo.options).forEach(option => {
+                if (!option.value) return;
+                option.hidden = option.dataset.curso !== curso.value;
+            });
+
+            if (modulo.selectedOptions[0] && modulo.selectedOptions[0].hidden) {
+                modulo.value = "";
+            }
+        }
+
+        buttons.forEach(button => {
+            button.addEventListener("click", function() {
+                buttons.forEach(item => item.classList.remove("active"));
+                panels.forEach(panel => panel.classList.remove("active"));
+                button.classList.add("active");
+                document.getElementById("tab-" + button.dataset.tab).classList.add("active");
+            });
+        });
+
+        tipo.addEventListener("change", atualizarModulo);
+        curso.addEventListener("change", atualizarModulo);
+        atualizarModulo();
+    });
+</script>
+{% endblock %}

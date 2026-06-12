@@ -1,0 +1,18 @@
+<div class="student-profile-menu">
+    <button type="button" class="student-profile-link student-profile-button" aria-haspopup="true" aria-expanded="false">
+        <span class="student-avatar">
+            <span class="avatar-icon" id="nav-avatar-display">{{ session.get('user_avatar', '🐧') }}</span>
+        </span>
+
+        <span class="student-profile-info">
+            <strong>{{ nome_usuario }}</strong>
+        </span>
+    </button>
+
+    <div class="student-profile-dropdown" role="menu">
+        <a href="/meus-cursos" role="menuitem">Meus cursos</a>
+        <a href="/certificados" role="menuitem">Meus certificados</a>
+        <a href="/perfil" role="menuitem">Perfil</a>
+        <a href="/logout" role="menuitem">Sair</a>
+    </div>
+</div>

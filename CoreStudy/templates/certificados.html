@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if certificado is defined %}Certificado{% else %}Meus certificados{% endif %} - Core Study</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body class="student-page {% if certificado is defined %}certificate-page{% else %}certificates-page{% endif %}">
+    {% include 'mensagens.html' %}
+
+    <header class="student-navbar {% if certificado is defined %}no-print{% endif %}">
+        <div class="student-brand">
+            <div class="student-logo-box">
+                <img src="{{ url_for('static', filename='img/logo_core_study.png') }}" alt="Logo Core Study">
+            </div>
+
+            <div class="student-brand-text">
+                <strong>Core Study</strong>
+            </div>
+
+            <a href="{% if certificado is defined %}/certificados{% else %}/aluno{% endif %}" class="student-back-link" title="Voltar">
+                <span aria-hidden="true">←</span>
+                Voltar
+            </a>
+        </div>
+
+        <div class="student-nav-right">
+            {% if certificado is defined %}
+                <button type="button" class="btn-logout" onclick="window.print()">Imprimir</button>
+            {% endif %}
+
+            {% include 'menu_aluno.html' %}
+        </div>
+    </header>
+
+    {% if certificado is defined %}
+        <main class="certificate-container">
+            <section class="certificate-sheet">
+                <div class="certificate-topline">
+                    <div class="certificate-brand-mark">
+                        <img src="{{ url_for('static', filename='img/logo_core_study.png') }}" alt="Logo Core Study">
+                        <span>Core Study</span>
+                    </div>
+                    <span>Código CS-{{ "%05d"|format(certificado[3]) }}</span>
+                </div>
+
+                <div class="certificate-main-copy">
+                    <span class="certificate-kicker">Certificado de conclusão</span>
+                    <h1>Trilha concluída</h1>
+
+                    <p>Certificamos que</p>
+                    <strong class="certificate-student">{{ certificado[0] }}</strong>
+                    <p>concluiu com aprovação o curso</p>
+                    <strong class="certificate-course">{{ certificado[1] }}</strong>
+                </div>
+
+                <div class="certificate-footer">
+                    <div>
+                        <small>Emitido em</small>
+                        <span>{{ certificado[2].strftime('%d/%m/%Y') if certificado[2] else '' }}</span>
+                    </div>
+
+                    <div class="certificate-signature">
+                        <strong>Core Study</strong>
+                        <small>Plataforma educacional</small>
+                    </div>
+                </div>
+            </section>
+        </main>
+    {% else %}
+        <main class="student-container certificates-container">
+            <section class="certificates-hero">
+                <div>
+                    <span class="course-student-eyebrow">Certificados emitidos</span>
+                    <h1>Meus certificados</h1>
+                    <p>Acompanhe suas trilhas concluídas e acesse seus certificados quando precisar.</p>
+                </div>
+
+                <div class="certificates-hero-mark" aria-hidden="true">✓</div>
+            </section>
+
+            <section class="certificates-grid">
+                {% if certificados %}
+                    {% for certificado in certificados %}
+                        <article class="certificate-list-card">
+                            <div class="certificate-list-seal" aria-hidden="true">
+                                <span>CS</span>
+                            </div>
+
+                            <div class="certificate-list-content">
+                                <span class="module-quiz-label">Certificado CS-{{ "%05d"|format(certificado[0]) }}</span>
+                                <h2>{{ certificado[2] }}</h2>
+
+                                <div class="certificate-list-meta">
+                                    <span>{{ certificado[3] }} horas</span>
+                                    <span>Emitido em {{ certificado[4].strftime('%d/%m/%Y') if certificado[4] else '' }}</span>
+                                </div>
+                            </div>
+
+                            <a href="/trilha/certificado/{{ certificado[1] }}" class="btn-quiz certificate">
+                                Abrir certificado
+                            </a>
+                        </article>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-student-state certificates-empty">
+                        <strong>Nenhum certificado emitido ainda.</strong>
+                        <span>Conclua todas as aulas e aprove as avaliações de uma trilha para liberar seu certificado.</span>
+                        <a href="/aluno" class="btn-quiz">Ver cursos</a>
+                    </div>
+                {% endif %}
+            </section>
+        </main>
+    {% endif %}
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const savedAvatar = localStorage.getItem("userAvatar");
+            const navAvatar = document.getElementById("nav-avatar-display");
+
+            if (savedAvatar && navAvatar) {
+                navAvatar.textContent = savedAvatar;
+            }
+        });
+    </script>
+</body>
+
+</html>

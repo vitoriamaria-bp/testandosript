@@ -31,17 +31,7 @@
         </div>
 
         <div class="student-nav-right">
-            <a href="/perfil" class="student-profile-link" title="Abrir configurações da conta">
-                <span class="student-avatar">
-                    <span class="avatar-icon" id="nav-avatar-display">{{ session.get('user_avatar', '🐧') }}</span>
-                </span>
-
-                <span class="student-profile-info">
-                    <strong>{{ nome_usuario }}</strong>
-                </span>
-            </a>
-
-            <a href="/logout" class="btn-logout">Sair</a>
+            {% include 'menu_aluno.html' %}
         </div>
     </header>
 

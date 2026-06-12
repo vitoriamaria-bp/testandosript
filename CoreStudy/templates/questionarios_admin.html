@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Questionários - Core Study{% endblock %}
+{% block header_title %}Gerenciamento de Questionários{% endblock %}
+
+{% block content %}
+<header class="page-header" style="justify-content: space-between; display: flex; align-items: flex-end; margin-bottom: 20px;">
+    <div>
+        <h1 style="font-size: 24px; color: var(--primary-color); font-weight: 700;">Questionários</h1>
+        <p style="color: var(--text-light); font-size: 14px;">Cadastre avaliações por módulo e provas finais por curso.</p>
+    </div>
+    <div style="min-width: 190px;">
+        <a href="/admin/adicionar-questionario" class="btn-primary admin-compact-btn">+ Adicionar Questionário</a>
+    </div>
+</header>
+
+<div class="content-card">
+    <div class="admin-filter-row">
+        <input type="text" id="searchQuestionario" placeholder="Pesquisar por título, curso ou módulo...">
+
+        <select id="filterTipo">
+            <option value="">Todos os tipos</option>
+            <option value="modulo">Módulo</option>
+            <option value="final">Final</option>
+        </select>
+
+        <select id="filterCurso">
+            <option value="">Todos os cursos</option>
+        </select>
+
+        <select id="filterOrdenacao">
+            <option value="padrao">Ordem padrão</option>
+            <option value="recente">Mais recentes</option>
+            <option value="antigo">Mais antigos</option>
+        </select>
+    </div>
+
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Questionário</th>
+                    <th>Curso</th>
+                    <th>Tipo</th>
+                    <th>Perguntas</th>
+                    <th>Nota</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for questionario in questionarios %}
+                    <tr data-search-item data-id="{{ questionario[0] }}" data-order="{{ loop.index }}" data-tipo="{{ 'final' if questionario[2] == 'CURSO' else 'modulo' }}">
+                        <td>#{{ questionario[0] }}</td>
+                        <td>
+                            <strong style="color: var(--primary-color);">{{ questionario[1] }}</strong>
+                            {% if questionario[5] %}
+                                <br><small style="color: var(--text-light);">{{ questionario[5] }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="questionario-curso">{{ questionario[4] }}</td>
+                        <td class="questionario-tipo">{{ 'Final' if questionario[2] == 'CURSO' else 'Módulo' }}</td>
+                        <td>{{ questionario[6] }}</td>
+                        <td>{{ questionario[3] }}%</td>
+                        <td>
+                            <div class="actions admin-table-actions">
+                                <a href="/admin/editar-questionario/{{ questionario[0] }}" class="btn-secondary admin-compact-btn">Editar</a>
+                                <form action="/admin/excluir-questionario/{{ questionario[0] }}" method="POST" id="form-questionario-{{ questionario[0] }}" style="margin: 0;">
+                                    <button type="button" class="btn-primary admin-compact-btn danger" onclick="openDeleteModal('form-questionario-{{ questionario[0] }}', 'Excluir este questionário e suas perguntas?')">Excluir</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-light);">Nenhum questionário cadastrado.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="no-results admin-no-results" id="noQuestionariosResults">
+            Nenhum questionário encontrado com estes filtros.
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const menu = document.querySelector('.sidebar-menu a[href="/admin/questionarios"]');
+        if (menu) menu.classList.add('active');
+
+        const searchInput = document.getElementById("searchQuestionario");
+        const filterTipo = document.getElementById("filterTipo");
+        const filterCurso = document.getElementById("filterCurso");
+        const filterOrdenacao = document.getElementById("filterOrdenacao");
+        const tbody = document.querySelector("tbody");
+        const rows = Array.from(document.querySelectorAll("tbody tr[data-search-item]"));
+        const noResults = document.getElementById("noQuestionariosResults");
+
+        function normalize(text) {
+            return (text || "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase()
+                .trim();
+        }
+
+        const cursos = new Map();
+        rows.forEach(row => {
+            const curso = row.querySelector(".questionario-curso");
+            if (!curso) return;
+            const label = curso.textContent.trim();
+            const value = normalize(label);
+            if (label && !cursos.has(value)) {
+                cursos.set(value, label);
+            }
+        });
+
+        Array.from(cursos.entries())
+            .sort((a, b) => a[1].localeCompare(b[1], "pt-BR"))
+            .forEach(([value, label]) => {
+                const option = document.createElement("option");
+                option.value = value;
+                option.textContent = label;
+                filterCurso.appendChild(option);
+            });
+
+        function sortRows() {
+            const ordenacao = filterOrdenacao.value;
+            const orderedRows = [...rows].sort((a, b) => {
+                if (ordenacao === "recente") {
+                    return Number(b.dataset.id) - Number(a.dataset.id);
+                }
+
+                if (ordenacao === "antigo") {
+                    return Number(a.dataset.id) - Number(b.dataset.id);
+                }
+
+                return Number(a.dataset.order) - Number(b.dataset.order);
+            });
+
+            orderedRows.forEach(row => tbody.appendChild(row));
+        }
+
+        function applyFilters() {
+            sortRows();
+
+            const search = normalize(searchInput.value);
+            const tipo = filterTipo.value;
+            const curso = filterCurso.value;
+            let visible = 0;
+
+            rows.forEach(row => {
+                const text = normalize(row.textContent);
+                const rowTipo = row.dataset.tipo;
+                const rowCurso = normalize(row.querySelector(".questionario-curso")?.textContent || "");
+                const matchSearch = !search || text.includes(search);
+                const matchTipo = !tipo || rowTipo === tipo;
+                const matchCurso = !curso || rowCurso === curso;
+
+                row.style.display = matchSearch && matchTipo && matchCurso ? "" : "none";
+                if (matchSearch && matchTipo && matchCurso) visible++;
+            });
+
+            if (noResults) {
+                noResults.style.display = visible === 0 && rows.length > 0 ? "block" : "none";
+            }
+        }
+
+        [searchInput, filterTipo, filterCurso, filterOrdenacao].forEach(input => {
+            input.addEventListener("input", applyFilters);
+            input.addEventListener("change", applyFilters);
+        });
+    });
+</script>
+{% endblock %}

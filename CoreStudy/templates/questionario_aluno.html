@@ -22,23 +22,10 @@
                 <strong>Core Study</strong>
             </div>
 
-            <a href="/trilha/curso/{{ questionario[4] }}" class="student-back-link" title="Voltar para o curso">
-                <span aria-hidden="true">←</span>
-                Voltar
-            </a>
         </div>
 
         <div class="student-nav-right">
-            <a href="/perfil" class="student-profile-link" title="Abrir configurações da conta">
-                <span class="student-avatar">
-                    <span class="avatar-icon">{{ session.get('user_avatar', '🐧') }}</span>
-                </span>
-                <span class="student-profile-info">
-                    <strong>{{ nome_usuario }}</strong>
-                </span>
-            </a>
-
-            <a href="/logout" class="btn-logout">Sair</a>
+            {% include 'menu_aluno.html' %}
         </div>
     </header>
 
@@ -55,17 +42,33 @@
             <span class="quiz-score-pill">{{ questoes|length }} questões</span>
         </section>
 
+        <section class="quiz-attempt-status">
+            <span>Status: <strong>{{ status_avaliacao.status }}</strong></span>
+            <span>Tentativas: <strong>{{ status_avaliacao.tentativas_usadas }}/3 usadas</strong></span>
+            <span>Restantes: <strong>{{ status_avaliacao.tentativas_restantes }}</strong></span>
+            <span>Maior nota: <strong>{{ status_avaliacao.maior_nota if status_avaliacao.maior_nota is not none else 'Sem tentativa' }}{% if status_avaliacao.maior_nota is not none %}%{% endif %}</strong></span>
+            {% if status_avaliacao.liberado_em %}
+                <span>Nova tentativa em: <strong>{{ status_avaliacao.liberado_em.strftime('%d/%m/%Y %H:%M') }}</strong></span>
+            {% endif %}
+        </section>
+
         {% if resultado %}
             <section class="quiz-result-card {% if resultado.aprovado %}approved{% else %}failed{% endif %}">
-                <strong>{{ resultado.nota }}%</strong>
-                <span>{{ resultado.acertos }} de {{ resultado.total }} respostas corretas</span>
-                <p>
-                    {% if resultado.aprovado %}
-                        Aprovado. Você pode voltar para a trilha.
-                    {% else %}
-                        Ainda não foi desta vez. Revise o conteúdo e tente novamente.
-                    {% endif %}
-                </p>
+                <div class="quiz-result-score">
+                    <span>Resultado da tentativa</span>
+                    <strong>{{ resultado.nota }}%</strong>
+                </div>
+
+                <div class="quiz-result-copy">
+                    <strong>{{ resultado.acertos }} de {{ resultado.total }} respostas corretas</strong>
+                    <p>
+                        {% if resultado.aprovado %}
+                            Aprovado. Continue pela trilha ou revise sua correção abaixo.
+                        {% else %}
+                            Ainda não foi desta vez. Revise as questões abaixo antes de tentar novamente.
+                        {% endif %}
+                    </p>
+                </div>
             </section>
         {% endif %}
 
@@ -109,9 +112,11 @@
             {% endfor %}
 
             <div class="quiz-actions">
-                <a href="/trilha/curso/{{ questionario[4] }}" class="quiz-secondary-action">Voltar para trilha</a>
                 {% if resultado %}
+                    <a href="/trilha/curso/{{ questionario[4] }}" class="quiz-secondary-action">Voltar para trilha</a>
                     <a href="/trilha/questionario/{{ questionario[0] }}?nova=1" class="quiz-primary-action">Responder novamente</a>
+                {% elif status_avaliacao.bloqueado %}
+                    <a href="/trilha/curso/{{ questionario[4] }}" class="quiz-secondary-action">Voltar para trilha</a>
                 {% else %}
                     <button type="submit" class="quiz-primary-action">Enviar respostas</button>
                 {% endif %}

@@ -32,17 +32,7 @@
         </div>
 
         <div class="student-nav-right">
-            <a href="/perfil" class="student-profile-link" title="Abrir configurações da conta">
-                <span class="student-avatar">
-                    <span class="avatar-icon" id="nav-avatar-display">{{ session.get('user_avatar', '🐧') }}</span>
-                </span>
-
-                <span class="student-profile-info">
-                    <strong>{{ nome_usuario }}</strong>
-                </span>
-            </a>
-
-            <a href="/logout" class="btn-logout">Sair</a>
+            {% include 'menu_aluno.html' %}
         </div>
     </header>
 
@@ -154,19 +144,27 @@
                                         <strong>{{ modulo.questionario.titulo }}</strong>
                                         <small>
                                             {% if modulo.questionario.aprovado %}
-                                                Aprovado
+                                                Aprovado • maior nota {{ modulo.questionario.status.maior_nota }}%
                                             {% elif modulo.questionario.liberado %}
-                                                Nota mínima: {{ modulo.questionario.nota_minima }}%
+                                                Nota mínima: {{ modulo.questionario.nota_minima }}% • tentativas {{ modulo.questionario.status.tentativas_usadas }}/3
+                                                {% if modulo.questionario.status.ultima_nota is not none %}
+                                                    • última nota {{ modulo.questionario.status.ultima_nota }}%
+                                                {% endif %}
+                                                {% if modulo.questionario.status.bloqueado %}
+                                                    • nova tentativa em {{ modulo.questionario.status.liberado_em.strftime('%d/%m/%Y %H:%M') }}
+                                                {% endif %}
                                             {% else %}
                                                 Conclua as aulas do módulo para liberar
                                             {% endif %}
                                         </small>
                                     </div>
 
-                                    {% if modulo.questionario.liberado %}
+                                    {% if modulo.questionario.liberado and not modulo.questionario.status.bloqueado %}
                                         <a href="/trilha/questionario/{{ modulo.questionario.id }}" class="btn-quiz">
                                             {% if modulo.questionario.aprovado %}Revisar{% else %}Responder{% endif %}
                                         </a>
+                                    {% elif modulo.questionario.status.bloqueado %}
+                                        <span class="btn-quiz disabled">Bloqueado 7 dias</span>
                                     {% else %}
                                         <span class="btn-quiz disabled">Bloqueado</span>
                                     {% endif %}
@@ -183,15 +181,25 @@
         </section>
 
         {% if questionario_final %}
+            <section class="student-section-header evaluations-heading">
+                <h2 class="section-title">Avaliações do curso</h2>
+            </section>
+
             <section class="course-final-card {% if questionario_final.aprovado %}approved{% elif questionario_final.liberado %}available{% else %}locked{% endif %}">
                 <div>
                     <span class="module-quiz-label">Etapa final</span>
                     <h2>{{ questionario_final.titulo }}</h2>
                     <p>
                         {% if questionario_final.aprovado %}
-                            Questionário final aprovado. Seu certificado está disponível.
+                            Questionário final aprovado. Maior nota: {{ questionario_final.status.maior_nota }}%. Seu certificado está disponível.
                         {% elif questionario_final.liberado %}
-                            Responda o questionário final para liberar o certificado.
+                            Responda o questionário final para liberar o certificado. Tentativas: {{ questionario_final.status.tentativas_usadas }}/3.
+                            {% if questionario_final.status.ultima_nota is not none %}
+                                Última nota: {{ questionario_final.status.ultima_nota }}%.
+                            {% endif %}
+                            {% if questionario_final.status.bloqueado %}
+                                Nova tentativa em {{ questionario_final.status.liberado_em.strftime('%d/%m/%Y %H:%M') }}.
+                            {% endif %}
                         {% else %}
                             Conclua todas as aulas e aprove os questionários dos módulos para liberar.
                         {% endif %}
@@ -199,10 +207,12 @@
                 </div>
 
                 <div class="course-final-actions">
-                    {% if questionario_final.liberado %}
+                    {% if questionario_final.liberado and not questionario_final.status.bloqueado %}
                         <a href="/trilha/questionario/{{ questionario_final.id }}" class="btn-quiz">
                             {% if questionario_final.aprovado %}Revisar final{% else %}Responder final{% endif %}
                         </a>
+                    {% elif questionario_final.status.bloqueado %}
+                        <span class="btn-quiz disabled">Bloqueado 7 dias</span>
                     {% endif %}
 
                     {% if certificado_emitido %}

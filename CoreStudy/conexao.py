@@ -26,6 +26,14 @@ URLS_VIDEO_POR_CURSO = {
     "Organização de Estudos": "https://www.youtube.com/watch?v=-mdRHwziNpU&list=PLfaiuyLsupZqIaydJNNHCJoEH951cXNT_",
     "Preparação para Entrevistas Tech": "https://www.youtube.com/watch?v=1VnUDlQf0So&list=PLJE0II7XilfWgJ2SkmbUtHUxHyzMEwWa-",
 }
+URLS_VIDEO_POR_AULA = {
+    ("Introdução à Inteligência Artificial", "Conceitos básicos de IA e aprendizado de máquina"): "https://www.youtube.com/watch?v=p33lQqS1PnY",
+    ("Introdução à Inteligência Artificial", "O que é inteligência artificial"): "https://www.youtube.com/watch?v=p33lQqS1PnY",
+    ("Introdução à Inteligência Artificial", "Dados, modelos e predições"): "https://www.youtube.com/watch?v=2vRUdnQ1X74",
+    ("Introdução à Inteligência Artificial", "IA em ferramentas do cotidiano"): "https://www.youtube.com/watch?v=Cn6QS3BNP3g",
+    ("Introdução à Inteligência Artificial", "Aplicações de IA em produtos digitais"): "https://www.youtube.com/watch?v=Cn6QS3BNP3g",
+    ("Introdução à Inteligência Artificial", "Ética, vieses e uso responsável"): "https://www.youtube.com/watch?v=dwQqK2sqbDc",
+}
 
 
 DADOS_DEMO = [
@@ -570,6 +578,29 @@ def criar_tabelas():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS tbl_cursos_iniciados (
+        id_inicio INT AUTO_INCREMENT PRIMARY KEY,
+        fk_tbl_usuarios_id_usuario INT NOT NULL,
+        fk_tbl_cursos_id_curso INT NOT NULL,
+        dt_inicio DATETIME DEFAULT CURRENT_TIMESTAMP,
+        dt_ultimo_acesso DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+        CONSTRAINT FK_tbl_cursos_iniciados_usuarios
+            FOREIGN KEY (fk_tbl_usuarios_id_usuario)
+            REFERENCES tbl_usuarios(id_usuario)
+            ON DELETE CASCADE,
+
+        CONSTRAINT FK_tbl_cursos_iniciados_cursos
+            FOREIGN KEY (fk_tbl_cursos_id_curso)
+            REFERENCES tbl_cursos(id_curso)
+            ON DELETE CASCADE,
+
+        CONSTRAINT UQ_tbl_cursos_iniciados_usuario_curso
+            UNIQUE (fk_tbl_usuarios_id_usuario, fk_tbl_cursos_id_curso)
+    )
+    """)
+
     cursor.execute(
         "SHOW INDEX FROM tbl_aulas_concluidas WHERE Key_name = 'UQ_tbl_aulas_concluidas_usuario_aula'"
     )
@@ -623,6 +654,20 @@ def criar_tabelas():
         fk_tbl_questionarios_id_questionario INT NOT NULL,
 
         CONSTRAINT FK_tbl_questoes_questionarios
+            FOREIGN KEY (fk_tbl_questionarios_id_questionario)
+            REFERENCES tbl_questionarios(id_questionario)
+            ON DELETE CASCADE
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS tbl_perguntas (
+        id_pergunta INT AUTO_INCREMENT PRIMARY KEY,
+        enunciado_pergunta VARCHAR(500) NOT NULL,
+        explicacao_pergunta TEXT NULL,
+        fk_tbl_questionarios_id_questionario INT NOT NULL,
+
+        CONSTRAINT FK_tbl_perguntas_questionarios
             FOREIGN KEY (fk_tbl_questionarios_id_questionario)
             REFERENCES tbl_questionarios(id_questionario)
             ON DELETE CASCADE
@@ -702,6 +747,30 @@ def criar_tabelas():
     """)
 
     cursor.execute("""
+    CREATE TABLE IF NOT EXISTS tbl_respostas_tentativa (
+        id_resposta INT AUTO_INCREMENT PRIMARY KEY,
+        fk_tbl_tentativas_questionario_id_tentativa INT NOT NULL,
+        fk_tbl_perguntas_id_pergunta INT NULL,
+        fk_tbl_alternativas_id_alternativa INT NOT NULL,
+
+        CONSTRAINT FK_tbl_respostas_tentativa_tentativas
+            FOREIGN KEY (fk_tbl_tentativas_questionario_id_tentativa)
+            REFERENCES tbl_tentativas_questionario(id_tentativa)
+            ON DELETE CASCADE,
+
+        CONSTRAINT FK_tbl_respostas_tentativa_perguntas
+            FOREIGN KEY (fk_tbl_perguntas_id_pergunta)
+            REFERENCES tbl_perguntas(id_pergunta)
+            ON DELETE CASCADE,
+
+        CONSTRAINT FK_tbl_respostas_tentativa_alternativas
+            FOREIGN KEY (fk_tbl_alternativas_id_alternativa)
+            REFERENCES tbl_alternativas(id_alternativa)
+            ON DELETE CASCADE
+    )
+    """)
+
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS tbl_certificados (
         id_certificado INT AUTO_INCREMENT PRIMARY KEY,
         fk_tbl_usuarios_id_usuario INT NOT NULL,
@@ -736,6 +805,7 @@ def buscar_id_categoria(cursor, nome):
         (nome,),
     )
     resultado = cursor.fetchone()
+    cursor.fetchall()
 
     if resultado:
         return resultado[0]
@@ -789,6 +859,7 @@ def buscar_id_modulo(cursor, titulo, id_curso):
         (titulo, id_curso),
     )
     resultado = cursor.fetchone()
+    cursor.fetchall()
 
     if resultado:
         return resultado[0]
@@ -939,6 +1010,15 @@ def questionario_tem_questoes(cursor, id_questionario):
 def salvar_questao_demo(cursor, id_questionario, enunciado, alternativas, explicacao=None):
     cursor.execute(
         """
+        INSERT INTO tbl_perguntas
+        (enunciado_pergunta, explicacao_pergunta, fk_tbl_questionarios_id_questionario)
+        VALUES (%s, %s, %s)
+        """,
+        (enunciado, explicacao, id_questionario),
+    )
+
+    cursor.execute(
+        """
         INSERT INTO tbl_questoes
         (enunciado_questao, explicacao_questao, fk_tbl_questionarios_id_questionario)
         VALUES (%s, %s, %s)
@@ -959,6 +1039,14 @@ def salvar_questao_demo(cursor, id_questionario, enunciado, alternativas, explic
 
 
 def recriar_questoes_questionario(cursor, id_questionario, questoes):
+    cursor.execute(
+        """
+        DELETE FROM tbl_perguntas
+        WHERE fk_tbl_questionarios_id_questionario = %s
+        """,
+        (id_questionario,),
+    )
+
     cursor.execute(
         """
         DELETE FROM tbl_questoes
@@ -990,6 +1078,18 @@ def questionario_contem_questao(cursor, id_questionario, trecho_enunciado):
     return cursor.fetchone()[0] > 0
 
 
+def contar_questoes_questionario(cursor, id_questionario):
+    cursor.execute(
+        """
+        SELECT COUNT(*)
+        FROM tbl_questoes
+        WHERE fk_tbl_questionarios_id_questionario = %s
+        """,
+        (id_questionario,),
+    )
+    return cursor.fetchone()[0]
+
+
 def popular_questionarios_ia_completos(cursor):
     cursor.execute(
         """
@@ -999,225 +1099,396 @@ def popular_questionarios_ia_completos(cursor):
         """
     )
     curso = cursor.fetchone()
+    cursor.fetchall()
 
     if not curso:
         return
 
     id_curso = curso[0]
+    def q(enunciado, alternativas, correta_indice):
+        resposta_correta = alternativas[correta_indice]
+        return {
+            "enunciado": enunciado,
+            "alternativas": [
+                (texto, 1 if indice == correta_indice else 0)
+                for indice, texto in enumerate(alternativas)
+            ],
+            "explicacao": (
+                f"A alternativa correta é: {resposta_correta}. "
+                "Ela responde diretamente ao conceito cobrado na questão. "
+                "As outras alternativas foram montadas como distrações e não representam adequadamente o conteúdo estudado."
+            ),
+        }
+
+    questoes_modulo_1 = [
+        q('O que melhor define Inteligência Artificial?',
+          [
+              'Um sistema que apenas armazena arquivos.',
+              'Um sistema capaz de executar tarefas que normalmente exigem inteligência humana.',
+              'Um programa que só troca cores da tela.',
+              'Um banco de dados sem regras.',
+          ], 1),
+        q('Qual alternativa descreve melhor aprendizado de máquina?',
+          [
+              'Uma técnica em que sistemas aprendem padrões a partir de dados.',
+              'Um método para apagar dados antigos.',
+              'Uma linguagem usada apenas para criar páginas HTML.',
+              'Um tipo de cabo usado em redes.',
+          ], 0),
+        q('Em IA, o que são dados de treinamento?',
+          [
+              'Dados usados para ensinar um modelo a reconhecer padrões.',
+              'Dados apagados depois do login.',
+              'Dados usados apenas para mudar o layout da página.',
+              'Dados que não têm utilidade para o sistema.',
+          ], 0),
+        q('O que é uma predição em IA?',
+          [
+              'Uma certeza absoluta.',
+              'Uma estimativa gerada com base em padrões aprendidos.',
+              'Um erro obrigatório do sistema.',
+              'Uma senha criptografada.',
+          ], 1),
+        q('Por que dados ruins podem prejudicar uma IA?',
+          [
+              'Porque podem gerar respostas incorretas, incompletas ou enviesadas.',
+              'Porque deixam os botões maiores.',
+              'Porque melhoram automaticamente o modelo.',
+              'Porque impedem o uso de internet.',
+          ], 0),
+        q('Um modelo de IA pode ser entendido como:',
+          [
+              'Uma regra visual do CSS.',
+              'Uma estrutura treinada para reconhecer padrões e gerar respostas ou previsões.',
+              'Um usuário administrador.',
+              'Um arquivo de imagem.',
+          ], 1),
+        q('Qual exemplo representa uso comum de IA no dia a dia?',
+          [
+              'Recomendação de vídeos, músicas ou produtos.',
+              'Trocar manualmente um cabo HDMI.',
+              'Pintar uma parede.',
+              'Abrir uma porta sem tecnologia.',
+          ], 0),
+        q('Qual é a relação entre dados e modelos de IA?',
+          [
+              'Modelos podem aprender padrões a partir dos dados.',
+              'Dados não influenciam modelos.',
+              'Modelos funcionam melhor sem informação.',
+              'Dados servem apenas para decoração da interface.',
+          ], 0),
+        q('Uma IA sempre está correta?',
+          [
+              'Sim, sempre.',
+              'Não. Ela pode errar dependendo dos dados, do modelo e do contexto.',
+              'Sim, se tiver internet.',
+              'Sim, se for uma tecnologia moderna.',
+          ], 1),
+        q('O que significa dizer que um modelo foi treinado?',
+          [
+              'Que ele recebeu exemplos para aprender padrões.',
+              'Que ele foi pintado.',
+              'Que ele perdeu os dados.',
+              'Que ele não tem finalidade.',
+          ], 0),
+        q('Na aula sobre dados, modelos e predições, qual sequência faz mais sentido?',
+          [
+              'Dados alimentam o treinamento, o modelo aprende padrões e depois gera predições.',
+              'O modelo aparece antes dos dados e não precisa de exemplos.',
+              'A predição cria os dados manualmente.',
+              'Os dados só servem para guardar nome de usuário.',
+          ], 0),
+        q('Se um sistema tenta prever se um aluno pode ter dificuldade em uma disciplina, ele provavelmente usa:',
+          [
+              'Dados anteriores e padrões identificados por um modelo.',
+              'Apenas a cor da tela.',
+              'Apenas o nome do professor.',
+              'Apenas a quantidade de botões.',
+          ], 0),
+        q('Qual alternativa mostra uma limitação da IA?',
+          [
+              'Ela depende da qualidade dos dados e pode gerar erros.',
+              'Ela sempre substitui qualquer pessoa.',
+              'Ela nunca precisa de revisão.',
+              'Ela não usa dados.',
+          ], 0),
+        q('Quando uma IA classifica mensagens como spam ou não spam, ela está:',
+          [
+              'Reconhecendo padrões em dados para tomar uma decisão.',
+              'Apenas mudando o tamanho da fonte.',
+              'Apagando automaticamente todos os e-mails.',
+              'Criando uma senha nova.',
+          ], 0),
+        q('Por que é importante entender o conceito de IA antes de usar ferramentas inteligentes?',
+          [
+              'Para saber suas possibilidades, limitações e riscos.',
+              'Para decorar nomes difíceis.',
+              'Para evitar qualquer uso de tecnologia.',
+              'Para substituir o banco de dados.',
+          ], 0),
+    ]
+
+    questoes_modulo_2 = [
+        q('Qual é uma aplicação comum de IA em produtos digitais?',
+          [
+              'Recomendação personalizada de conteúdo.',
+              'Troca física de monitor.',
+              'Pintura de uma sala.',
+              'Formatação manual de papel.',
+          ], 0),
+        q('Em um chatbot, a IA pode ser usada para:',
+          [
+              'Entender perguntas e gerar respostas.',
+              'Apagar o sistema operacional.',
+              'Quebrar senhas.',
+              'Substituir todo o banco de dados sem regra.',
+          ], 0),
+        q('IA em produtos digitais deve ser usada quando:',
+          [
+              'Ajuda a resolver um problema real do usuário.',
+              'Serve apenas para enfeitar a tela.',
+              'Deixa o sistema mais confuso.',
+              'Remove toda validação humana.',
+          ], 0),
+        q('O que é viés em IA?',
+          [
+              'Uma tendência injusta ou distorcida nos resultados.',
+              'Um tipo de botão.',
+              'Uma imagem de perfil.',
+              'Um arquivo CSS.',
+          ], 0),
+        q('Por que transparência é importante no uso de IA?',
+          [
+              'Para o usuário entender quando e como a IA influencia uma decisão.',
+              'Para esconder o funcionamento do sistema.',
+              'Para impedir auditoria.',
+              'Para remover todas as regras.',
+          ], 0),
+        q('Qual cuidado é importante ao usar dados pessoais com IA?',
+          [
+              'Privacidade, segurança e consentimento.',
+              'Expor todos os dados publicamente.',
+              'Ignorar qualquer regra de segurança.',
+              'Compartilhar senhas com terceiros.',
+          ], 0),
+        q('Um exemplo de uso responsável de IA é:',
+          [
+              'Informar limitações e revisar resultados importantes.',
+              'Aceitar qualquer resposta sem conferir.',
+              'Usar dados sensíveis sem autorização.',
+              'Esconder erros do usuário.',
+          ], 0),
+        q('Em produtos digitais, IA pode melhorar a experiência quando:',
+          [
+              'Personaliza, automatiza ou apoia decisões com clareza.',
+              'Remove todas as opções do usuário.',
+              'Impede qualquer correção humana.',
+              'Funciona sem dados e sem objetivo.',
+          ], 0),
+        q('O que deve ser feito se uma IA gerar uma resposta duvidosa?',
+          [
+              'Revisar, validar e corrigir quando necessário.',
+              'Publicar automaticamente.',
+              'Ignorar o problema.',
+              'Bloquear o usuário.',
+          ], 0),
+        q('Qual risco aparece em sistemas de IA mal avaliados?',
+          [
+              'Reforçar discriminações, erros ou decisões injustas.',
+              'Melhorar tudo automaticamente.',
+              'Eliminar todos os vieses sem análise.',
+              'Garantir 100% de acerto.',
+          ], 0),
+        q('Em um aplicativo de estudos, uma IA poderia ajudar em:',
+          [
+              'Recomendar conteúdos com base no progresso do aluno.',
+              'Apagar todos os cursos.',
+              'Impedir o aluno de acessar aulas.',
+              'Trocar o banco de dados por uma imagem.',
+          ], 0),
+        q('Qual exemplo mostra IA no dia a dia?',
+          [
+              'Assistente virtual, recomendação de filmes e filtro de spam.',
+              'Caderno sem internet.',
+              'Lápis comum.',
+              'Teclado desconectado.',
+          ], 0),
+        q('Por que a revisão humana ainda é importante em sistemas com IA?',
+          [
+              'Porque a IA pode errar, interpretar mal ou reproduzir vieses.',
+              'Porque humanos devem sempre apagar o sistema.',
+              'Porque a IA nunca gera resultado útil.',
+              'Porque revisão remove todos os dados.',
+          ], 0),
+        q('Uma decisão automatizada por IA deve ser acompanhada de cuidado quando:',
+          [
+              'Afeta pessoas, oportunidades, segurança ou direitos.',
+              'Muda apenas a cor de um botão.',
+              'Organiza ícones sem impacto.',
+              'Abre uma imagem decorativa.',
+          ], 0),
+        q('Qual alternativa representa uso inadequado de IA?',
+          [
+              'Usar dados pessoais sem autorização e sem explicar ao usuário.',
+              'Avisar que a IA está sendo usada.',
+              'Revisar resultados antes de tomar decisões importantes.',
+              'Avaliar riscos e limitações.',
+          ], 0),
+    ]
+
+    questionario_final = [
+        q('Qual opção resume melhor Inteligência Artificial?',
+          [
+              'Sistemas capazes de executar tarefas associadas à inteligência humana.',
+              'Apenas planilhas.',
+              'Apenas redes sociais.',
+              'Apenas imagens.',
+          ], 0),
+        q('O que um modelo de IA aprende durante o treinamento?',
+          [
+              'Padrões nos dados.',
+              'Cores da tela.',
+              'Senhas dos usuários.',
+              'O nome do computador.',
+          ], 0),
+        q('Predição significa:',
+          [
+              'Uma estimativa baseada em dados e padrões.',
+              'Uma certeza absoluta.',
+              'Um erro fixo.',
+              'Uma tela de login.',
+          ], 0),
+        q('Qual fator pode causar viés em IA?',
+          [
+              'Dados de treinamento desequilibrados ou mal representados.',
+              'Botão pequeno.',
+              'Fonte grande.',
+              'Internet lenta.',
+          ], 0),
+        q('Qual exemplo representa IA em produto digital?',
+          [
+              'Sistema de recomendação.',
+              'Cabo de energia.',
+              'Cadeira comum.',
+              'Impressora sem software.',
+          ], 0),
+        q('Por que revisar respostas de IA é importante?',
+          [
+              'Porque IA pode errar ou gerar conteúdo inadequado.',
+              'Porque IA nunca erra.',
+              'Porque revisão sempre piora o resultado.',
+              'Porque revisão apaga dados.',
+          ], 0),
+        q('Uso responsável de IA envolve:',
+          [
+              'Segurança, transparência, privacidade e cuidado com vieses.',
+              'Apenas velocidade.',
+              'Apenas aparência.',
+              'Apenas propaganda.',
+          ], 0),
+        q('Em um curso online, IA poderia ajudar em:',
+          [
+              'Recomendação de conteúdo e apoio ao estudo.',
+              'Desligar o banco.',
+              'Apagar alunos.',
+              'Remover aulas.',
+          ], 0),
+        q('O que significa dizer que IA depende de contexto?',
+          [
+              'Que a resposta pode variar conforme dados, pergunta e objetivo.',
+              'Que a resposta é sempre igual.',
+              'Que o contexto não importa.',
+              'Que só funciona offline.',
+          ], 0),
+        q('Para liberar certificado de forma justa, o sistema deve:',
+          [
+              'Exigir desempenho mínimo nos questionários.',
+              'Liberar para qualquer usuário sem avaliação.',
+              'Ignorar tentativas.',
+              'Apagar notas antigas.',
+          ], 0),
+        q('Qual alternativa diferencia IA de uma regra fixa simples?',
+          [
+              'A IA pode aprender padrões a partir de dados, enquanto uma regra fixa segue instruções pré-definidas.',
+              'IA é apenas uma imagem.',
+              'Regra fixa sempre aprende sozinha.',
+              'IA não usa informação.',
+          ], 0),
+        q('Se uma IA recomenda vídeos para um usuário, ela provavelmente usa:',
+          [
+              'Dados de comportamento e padrões de preferência.',
+              'Apenas o tamanho da tela.',
+              'Apenas a cor do botão.',
+              'Apenas o nome do navegador.',
+          ], 0),
+        q('O que é uma alternativa correta sobre dados de treinamento?',
+          [
+              'Eles influenciam o comportamento e os resultados do modelo.',
+              'Eles não têm relação com a IA.',
+              'Eles servem apenas para design.',
+              'Eles impedem qualquer predição.',
+          ], 0),
+        q('Qual situação exige mais cuidado ético no uso de IA?',
+          [
+              'Um sistema que influencia seleção de pessoas, crédito, saúde ou educação.',
+              'Um sistema que muda um ícone decorativo.',
+              'Um botão de voltar.',
+              'Uma animação sem dados.',
+          ], 0),
+        q('O que pode acontecer se um modelo for treinado com dados incompletos?',
+          [
+              'Ele pode gerar resultados limitados, incorretos ou injustos.',
+              'Ele fica perfeito automaticamente.',
+              'Ele deixa de precisar de testes.',
+              'Ele nunca erra.',
+          ], 0),
+        q('Em IA, o termo “modelo” se refere principalmente a:',
+          [
+              'Uma estrutura capaz de processar dados e gerar resultados.',
+              'Uma foto de perfil.',
+              'Uma cor do sistema.',
+              'Um menu lateral.',
+          ], 0),
+        q('Qual é uma boa prática ao usar IA generativa?',
+          [
+              'Conferir informações importantes antes de usar ou publicar.',
+              'Copiar qualquer resposta sem revisar.',
+              'Usar para expor dados privados.',
+              'Acreditar que toda resposta está correta.',
+          ], 0),
+        q('Qual alternativa mostra uma relação correta entre IA e produtos digitais?',
+          [
+              'IA pode melhorar produtos quando resolve problemas reais e é usada com responsabilidade.',
+              'IA deve ser usada mesmo sem propósito.',
+              'IA sempre substitui todo o sistema.',
+              'IA não pode ser aplicada em produtos digitais.',
+          ], 0),
+        q('Qual é o principal objetivo de limitar tentativas em questionários?',
+          [
+              'Organizar a avaliação e evitar repetição excessiva sem estudo.',
+              'Impedir o aluno de aprender.',
+              'Apagar o progresso do aluno.',
+              'Remover a nota final.',
+          ], 0),
+        q('Para um certificado ter mais valor no CoreStudy, ele deve ser liberado quando:',
+          [
+              'O aluno concluir as aulas e atingir a nota mínima nas avaliações.',
+              'O aluno apenas abrir a página inicial.',
+              'O aluno errar todos os questionários.',
+              'O aluno não acessar o curso.',
+          ], 0),
+    ]
+
     questionarios_modulos = {
         "Fundamentos de IA": {
-            "marcador": "overfitting",
-            "questoes": [
-                {
-                    "enunciado": "Um modelo acerta muito bem os exemplos de treino, mas erra muitos casos novos. Qual problema isso indica?",
-                    "alternativas": [
-                        ("Baixa latência, pois o modelo responde rápido demais.", 0),
-                        ("Overfitting, pois ele decorou padrões do treino e generalizou mal.", 1),
-                        ("Anonimização, pois os dados foram removidos corretamente.", 0),
-                        ("Interface ruim, pois o problema está apenas na tela.", 0),
-                    ],
-                    "explicacao": "A resposta correta é overfitting: o modelo parece ótimo no treino, mas falha fora dele. As outras alternativas não explicam erro em dados novos: latência é velocidade, anonimização é privacidade e interface não descreve aprendizagem do modelo.",
-                },
-                {
-                    "enunciado": "Na relação entre dados, modelo e predição, qual afirmação é mais precisa?",
-                    "alternativas": [
-                        ("A predição é gerada pelo modelo a partir de padrões aprendidos nos dados.", 1),
-                        ("Os dados são descartados antes de qualquer treinamento.", 0),
-                        ("O modelo é apenas a tela onde o usuário clica.", 0),
-                        ("A predição sempre é correta quando existe bastante dado.", 0),
-                    ],
-                    "explicacao": "A predição vem do modelo treinado ou configurado a partir dos dados. Ter muitos dados não garante acerto se eles forem ruins ou enviesados; modelo não é interface e os dados não são descartados antes do aprendizado.",
-                },
-                {
-                    "enunciado": "Por que separar dados de treino e teste é uma prática importante?",
-                    "alternativas": [
-                        ("Para esconder os resultados dos usuários finais.", 0),
-                        ("Para deixar o modelo maior e mais caro.", 0),
-                        ("Para avaliar se o modelo funciona em dados que ele ainda não viu.", 1),
-                        ("Para impedir qualquer comparação de desempenho.", 0),
-                    ],
-                    "explicacao": "O teste com dados não vistos mede generalização. Esconder resultados, encarecer o modelo ou impedir comparação não melhora a avaliação da IA.",
-                },
-                {
-                    "enunciado": "Ao revisar a atividade do Drive, qual exemplo mostra melhor um problema de qualidade dos dados?",
-                    "alternativas": [
-                        ("Uma base com registros duplicados, campos incompletos e exemplos de uma única realidade.", 1),
-                        ("Um botão laranja no formulário de cadastro.", 0),
-                        ("Um certificado emitido depois da avaliação.", 0),
-                        ("Uma aula com vídeo incorporado corretamente.", 0),
-                    ],
-                    "explicacao": "Dados duplicados, incompletos e pouco diversos prejudicam o aprendizado. Cor de botão, certificado e vídeo são elementos da plataforma, não problemas de qualidade da base de dados.",
-                },
-                {
-                    "enunciado": "Qual situação mostra uma predição sendo usada com cautela?",
-                    "alternativas": [
-                        ("Aceitar automaticamente toda recomendação do sistema.", 0),
-                        ("Ignorar contexto e usar apenas a maior probabilidade.", 0),
-                        ("Comparar a saída do modelo com critérios, contexto e revisão humana.", 1),
-                        ("Apagar a explicação do resultado para evitar dúvidas.", 0),
-                    ],
-                    "explicacao": "Predições devem ser interpretadas com contexto e, quando necessário, revisão humana. Aceitar cegamente, ignorar contexto ou remover explicações aumenta risco de erro.",
-                },
-                {
-                    "enunciado": "Qual alternativa diferencia melhor classificação e regressão?",
-                    "alternativas": [
-                        ("Classificação prevê categorias; regressão prevê valores numéricos.", 1),
-                        ("Classificação só funciona sem dados; regressão só funciona com imagens.", 0),
-                        ("Classificação é ética; regressão é sempre enviesada.", 0),
-                        ("As duas significam exatamente a mesma coisa.", 0),
-                    ],
-                    "explicacao": "Classificação lida com classes, como aprovado/reprovado; regressão estima números, como preço ou tempo. As outras opções confundem conceitos ou fazem generalizações falsas.",
-                },
-            ],
+            "marcador": "O que melhor define Inteligência Artificial?",
+            "questoes": questoes_modulo_1,
         },
         "IA no Dia a Dia": {
-            "marcador": "decisão sensível",
-            "questoes": [
-                {
-                    "enunciado": "Um app recomenda conteúdos parecidos com o histórico do usuário. Qual risco precisa ser observado?",
-                    "alternativas": [
-                        ("O sistema nunca pode usar dados de navegação.", 0),
-                        ("A recomendação pode criar bolhas e reduzir diversidade de conteúdo.", 1),
-                        ("Toda recomendação personalizada é ilegal.", 0),
-                        ("O algoritmo deixa de ser IA quando recomenda conteúdos.", 0),
-                    ],
-                    "explicacao": "Recomendações podem reforçar padrões e limitar diversidade. Isso não significa que personalização seja sempre ilegal ou que deixe de ser IA; o ponto é avaliar impactos.",
-                },
-                {
-                    "enunciado": "Qual prática é mais adequada antes de usar IA em uma decisão sensível, como crédito ou seleção?",
-                    "alternativas": [
-                        ("Usar a resposta do modelo como decisão final sem revisão.", 0),
-                        ("Remover qualquer registro de como a decisão foi tomada.", 0),
-                        ("Avaliar vieses, explicar critérios e manter revisão humana.", 1),
-                        ("Treinar com poucos exemplos para acelerar o processo.", 0),
-                    ],
-                    "explicacao": "Decisões sensíveis exigem cuidado com vieses, transparência e revisão humana. Automatizar sem revisão, apagar rastros ou treinar com poucos dados aumenta risco.",
-                },
-                {
-                    "enunciado": "No material de IA responsável, qual atitude reduz risco de uso indevido?",
-                    "alternativas": [
-                        ("Documentar limites, fontes de dados e situações em que o sistema não deve ser usado.", 1),
-                        ("Prometer que o sistema nunca erra.", 0),
-                        ("Usar dados pessoais sem informar o usuário.", 0),
-                        ("Evitar testes para não descobrir falhas.", 0),
-                    ],
-                    "explicacao": "Documentar limites e fontes ajuda o uso responsável. Prometer perfeição, usar dados sem transparência e evitar testes são práticas perigosas.",
-                },
-                {
-                    "enunciado": "Uma IA reconhece pior rostos de um grupo específico. Qual explicação é mais provável?",
-                    "alternativas": [
-                        ("O problema só pode ser velocidade da internet.", 0),
-                        ("O modelo foi treinado com dados pouco representativos ou enviesados.", 1),
-                        ("Todo reconhecimento facial sempre funciona igual para todos.", 0),
-                        ("A interface deveria ter mais botões.", 0),
-                    ],
-                    "explicacao": "Desempenho desigual costuma indicar dados pouco representativos, vieses ou avaliação incompleta. Internet e botões não explicam diferença sistemática por grupo.",
-                },
-                {
-                    "enunciado": "Qual exemplo combina automação com responsabilidade?",
-                    "alternativas": [
-                        ("Bloquear um usuário sem justificativa nem canal de revisão.", 0),
-                        ("Gerar recomendações e permitir contestação, auditoria e ajustes.", 1),
-                        ("Ocultar todos os critérios do sistema.", 0),
-                        ("Coletar mais dados do que o necessário.", 0),
-                    ],
-                    "explicacao": "Responsabilidade envolve possibilidade de revisão, auditoria e correção. Bloqueio opaco, critérios ocultos e coleta excessiva aumentam risco e reduzem confiança.",
-                },
-                {
-                    "enunciado": "Ao usar uma resposta gerada por IA em um trabalho, qual conduta é mais adequada?",
-                    "alternativas": [
-                        ("Copiar sem verificar porque IA sempre está correta.", 0),
-                        ("Verificar fontes, adaptar ao contexto e assumir responsabilidade pelo resultado.", 1),
-                        ("Remover qualquer referência ao processo usado.", 0),
-                        ("Usar mesmo quando não entende a resposta.", 0),
-                    ],
-                    "explicacao": "IA pode apoiar, mas o usuário deve verificar, contextualizar e se responsabilizar. Copiar cegamente ou usar sem entender pode gerar erro e má prática.",
-                },
-            ],
+            "marcador": "Qual é uma aplicação comum de IA em produtos digitais?",
+            "questoes": questoes_modulo_2,
         },
     }
-    questionario_final = [
-        {
-            "enunciado": "Uma empresa quer prever evasão de alunos. Qual conjunto mínimo faz mais sentido para começar com responsabilidade?",
-            "alternativas": [
-                ("Dados relevantes, objetivo claro, avaliação de vieses e validação com casos não vistos.", 1),
-                ("Apenas um layout bonito para exibir a previsão.", 0),
-                ("Dados aleatórios e nenhuma métrica de avaliação.", 0),
-                ("Um certificado antes de testar o modelo.", 0),
-            ],
-            "explicacao": "Um projeto de IA precisa de objetivo, dados relevantes, validação e análise de vieses. Interface e certificado não substituem avaliação técnica e ética.",
-        },
-        {
-            "enunciado": "Se um modelo apresenta 95% de acerto geral, por que ainda pode ser problemático?",
-            "alternativas": [
-                ("Porque 95% sempre significa que o modelo é inútil.", 0),
-                ("Porque pode errar muito em grupos específicos ou casos críticos.", 1),
-                ("Porque modelos de IA não podem ter métricas.", 0),
-                ("Porque acurácia só vale para vídeos.", 0),
-            ],
-            "explicacao": "Média alta pode esconder erro concentrado em grupos ou situações sensíveis. A métrica precisa ser analisada por contexto, não rejeitada automaticamente.",
-        },
-        {
-            "enunciado": "Qual alternativa descreve melhor o ciclo estudado na trilha?",
-            "alternativas": [
-                ("Coletar dados, entender problema, treinar/analisar modelo, avaliar, revisar impactos e usar com cuidado.", 1),
-                ("Escolher qualquer ferramenta, publicar e não revisar resultados.", 0),
-                ("Ignorar dados e depender só de opinião.", 0),
-                ("Aplicar IA em todo problema mesmo sem necessidade.", 0),
-            ],
-            "explicacao": "A trilha mostra IA como processo: problema, dados, modelo, avaliação e responsabilidade. Publicar sem revisar ou usar IA sem necessidade contraria esse ciclo.",
-        },
-        {
-            "enunciado": "Qual item dos materiais do Drive ajuda diretamente na consolidação dos fundamentos?",
-            "alternativas": [
-                ("Slides e atividade que relacionam dados, modelos, predição e exemplos reais.", 1),
-                ("Somente abrir a pasta sem revisar conteúdo.", 0),
-                ("Ignorar a atividade para responder por tentativa.", 0),
-                ("Usar o material para substituir todas as aulas.", 0),
-            ],
-            "explicacao": "Os materiais complementam as aulas ao conectar conceitos com exemplos. Abrir sem revisar, tentar adivinhar ou substituir as aulas reduz aprendizagem.",
-        },
-        {
-            "enunciado": "Em qual situação a revisão humana é mais necessária?",
-            "alternativas": [
-                ("Quando a IA influencia acesso a crédito, vaga, benefício ou outro direito relevante.", 1),
-                ("Quando a IA sugere a cor de um ícone decorativo.", 0),
-                ("Quando o resultado não afeta ninguém.", 0),
-                ("Quando não existem dados pessoais nem decisão sensível.", 0),
-            ],
-            "explicacao": "Quanto maior o impacto na vida da pessoa, maior a necessidade de revisão humana. Decisões sensíveis não devem depender só de automação.",
-        },
-        {
-            "enunciado": "O que é um viés em IA no contexto estudado?",
-            "alternativas": [
-                ("Uma distorção nos dados, no desenho ou no uso do sistema que afeta resultados de forma injusta.", 1),
-                ("Qualquer resposta correta dada pelo modelo.", 0),
-                ("Um recurso visual da interface.", 0),
-                ("Uma garantia de que a IA será mais rápida.", 0),
-            ],
-            "explicacao": "Viés é uma distorção que pode gerar tratamento injusto. Não é resposta correta, recurso visual ou medida de velocidade.",
-        },
-        {
-            "enunciado": "Qual pergunta deve ser feita antes de aplicar IA a um problema?",
-            "alternativas": [
-                ("Existe dado adequado, necessidade real, métrica de sucesso e risco aceitável?", 1),
-                ("Como colocar IA mesmo sem problema definido?", 0),
-                ("Como evitar qualquer avaliação depois do lançamento?", 0),
-                ("Como coletar o máximo de dados possível sem critério?", 0),
-            ],
-            "explicacao": "IA deve partir de necessidade real, dados adequados, métrica e análise de risco. Usar por moda, sem avaliação ou com coleta excessiva é inadequado.",
-        },
-        {
-            "enunciado": "Qual conclusão resume melhor a trilha de Introdução à IA?",
-            "alternativas": [
-                ("IA combina dados, modelos e decisões, exigindo avaliação técnica e responsabilidade social.", 1),
-                ("IA é apenas uma palavra para qualquer sistema digital.", 0),
-                ("IA sempre substitui pessoas sem riscos.", 0),
-                ("IA não precisa de dados, contexto ou revisão.", 0),
-            ],
-            "explicacao": "A trilha conecta técnica e responsabilidade: dados e modelos precisam ser avaliados no contexto de uso. As demais opções simplificam ou distorcem o conceito.",
-        },
-    ]
 
     for titulo_modulo, config in questionarios_modulos.items():
         cursor.execute(
@@ -1233,8 +1504,12 @@ def popular_questionarios_ia_completos(cursor):
             (id_curso, titulo_modulo),
         )
         questionario = cursor.fetchone()
+        cursor.fetchall()
 
-        if questionario and not questionario_contem_questao(cursor, questionario[0], config["marcador"]):
+        if questionario and (
+            not questionario_contem_questao(cursor, questionario[0], config["marcador"])
+            or contar_questoes_questionario(cursor, questionario[0]) < len(config["questoes"])
+        ):
             recriar_questoes_questionario(cursor, questionario[0], config["questoes"])
 
     cursor.execute(
@@ -1248,8 +1523,12 @@ def popular_questionarios_ia_completos(cursor):
         (id_curso,),
     )
     questionario = cursor.fetchone()
+    cursor.fetchall()
 
-    if questionario and not questionario_contem_questao(cursor, questionario[0], "evasão de alunos"):
+    if questionario and (
+        not questionario_contem_questao(cursor, questionario[0], "Qual opção resume melhor Inteligência Artificial?")
+        or contar_questoes_questionario(cursor, questionario[0]) < len(questionario_final)
+    ):
         recriar_questoes_questionario(cursor, questionario[0], questionario_final)
 
 
@@ -1259,7 +1538,7 @@ def popular_questionarios_demo():
     if conexao is None:
         return False
 
-    cursor = conexao.cursor()
+    cursor = conexao.cursor(buffered=True)
 
     try:
         cursor.execute(
@@ -1423,31 +1702,28 @@ def base_demo_incompleta(cursor):
 
     for grupo in DADOS_DEMO:
         for curso in grupo["cursos"]:
-            aulas_curso = [
-                aula
-                for modulo in curso["modulos"]
-                for aula in modulo["aulas"]
-            ]
             url_video = URLS_VIDEO_POR_CURSO.get(curso["titulo"], URL_VIDEO_PADRAO)
-            placeholders = ", ".join(["%s"] * len(aulas_curso))
 
-            cursor.execute(
-                f"""
-                SELECT COUNT(*)
-                FROM tbl_aulas a
-                INNER JOIN tbl_modulos m
-                    ON a.fk_tbl_modulos_id_modulo = m.id_modulo
-                INNER JOIN tbl_cursos c
-                    ON m.fk_tbl_cursos_id_curso = c.id_curso
-                WHERE c.titulo_curso = %s
-                  AND a.titulo_aula IN ({placeholders})
-                  AND a.url_arqui_aula = %s
-                """,
-                (curso["titulo"], *aulas_curso, url_video),
-            )
+            for modulo in curso["modulos"]:
+                for aula in modulo["aulas"]:
+                    url_aula = URLS_VIDEO_POR_AULA.get((curso["titulo"], aula), url_video)
+                    cursor.execute(
+                        """
+                        SELECT COUNT(*)
+                        FROM tbl_aulas a
+                        INNER JOIN tbl_modulos m
+                            ON a.fk_tbl_modulos_id_modulo = m.id_modulo
+                        INNER JOIN tbl_cursos c
+                            ON m.fk_tbl_cursos_id_curso = c.id_curso
+                        WHERE c.titulo_curso = %s
+                          AND a.titulo_aula = %s
+                          AND a.url_arqui_aula = %s
+                        """,
+                        (curso["titulo"], aula, url_aula),
+                    )
 
-            if cursor.fetchone()[0] < len(set(aulas_curso)):
-                return True
+                    if cursor.fetchone()[0] == 0:
+                        return True
 
     cursor.execute(
         """
@@ -1490,7 +1766,8 @@ def popular_dados_demo():
                     id_modulo = buscar_id_modulo(cursor, modulo["titulo"], id_curso)
 
                     for titulo_aula in modulo["aulas"]:
-                        id_aula = buscar_id_aula(cursor, titulo_aula, id_modulo, url_video)
+                        url_aula = URLS_VIDEO_POR_AULA.get((curso["titulo"], titulo_aula), url_video)
+                        id_aula = buscar_id_aula(cursor, titulo_aula, id_modulo, url_aula)
                         aulas_por_titulo[titulo_aula] = id_aula
 
                 for material in curso.get("materiais", []):
