@@ -48,6 +48,21 @@ def campo_vazio(valor):
     return valor is None or str(valor).strip() == ""
 
 
+def idade_minima_valida(data_nasc, idade_minima=16):
+    try:
+        nascimento = datetime.strptime(data_nasc, "%Y-%m-%d").date()
+    except ValueError:
+        return False
+
+    hoje = datetime.today().date()
+    idade = hoje.year - nascimento.year
+
+    if (hoje.month, hoje.day) < (nascimento.month, nascimento.day):
+        idade -= 1
+
+    return idade >= idade_minima
+
+
 def carga_hora_valida(carga_hora):
     try:
         return int(carga_hora) > 0
@@ -583,6 +598,9 @@ def cadastro():
         if any(campo_vazio(valor) for valor in [nome, email, telefone, data_nasc, senha]):
             return erro_validacao("Preencha todos os campos.", "/cadastro")
 
+        if not idade_minima_valida(data_nasc):
+            return erro_validacao("É preciso ter pelo menos 16 anos para acessar a plataforma.", "/cadastro")
+
         if len(senha) < 8:
             return erro_validacao("A senha deve ter no mínimo 8 caracteres.", "/cadastro")
 
@@ -682,6 +700,9 @@ def adicionar_usuario_admin():
         if any(campo_vazio(valor) for valor in [nome, email, telefone, data_nasc, senha]):
             return erro_validacao("Preencha todos os campos.", "/admin/adicionar-usuario")
 
+        if not idade_minima_valida(data_nasc):
+            return erro_validacao("O usuário precisa ter pelo menos 16 anos.", "/admin/adicionar-usuario")
+
         if len(senha) < 8:
             return erro_validacao("A senha deve ter no mínimo 8 caracteres.", "/admin/adicionar-usuario")
 
@@ -741,6 +762,9 @@ def editar_usuario_admin(id_usuario):
 
             if any(campo_vazio(valor) for valor in [nome, email, telefone, data_nasc, senha]):
                 return erro_validacao("Preencha todos os campos.", f"/admin/editar-usuario/{id_usuario}")
+
+            if not idade_minima_valida(data_nasc):
+                return erro_validacao("O usuário precisa ter pelo menos 16 anos.", f"/admin/editar-usuario/{id_usuario}")
 
             if len(senha) < 8:
                 return erro_validacao("A senha deve ter no mínimo 8 caracteres.", f"/admin/editar-usuario/{id_usuario}")
@@ -3071,6 +3095,9 @@ def perfil():
 
             if any(campo_vazio(valor) for valor in [nome, email, telefone, data_nasc, senha]):
                 return erro_validacao("Preencha todos os campos.", "/perfil")
+
+            if not idade_minima_valida(data_nasc):
+                return erro_validacao("É preciso ter pelo menos 16 anos para acessar a plataforma.", "/perfil")
 
             if len(senha) < 8:
                 return erro_validacao("A senha deve ter no mínimo 8 caracteres.", "/perfil")

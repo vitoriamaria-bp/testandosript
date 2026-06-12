@@ -487,9 +487,22 @@ def criar_tabelas():
         telefone_usuario VARCHAR(50) NOT NULL,
         dt_nasc_usuario DATE NOT NULL,
         senha_usuario VARCHAR(100) NOT NULL,
-        dt_cad_usuario DATE DEFAULT (CURRENT_DATE)
+        dt_cad_usuario DATE DEFAULT (CURRENT_DATE),
+        CONSTRAINT UQ_tbl_usuarios_email UNIQUE (email_usuario)
     )
     """)
+
+    cursor.execute(
+        "SHOW INDEX FROM tbl_usuarios WHERE Key_name = 'UQ_tbl_usuarios_email'"
+    )
+    indice_email_unico = cursor.fetchone()
+    cursor.fetchall()
+
+    if not indice_email_unico:
+        cursor.execute("""
+        ALTER TABLE tbl_usuarios
+        ADD CONSTRAINT UQ_tbl_usuarios_email UNIQUE (email_usuario)
+        """)
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS tbl_categoria (
