@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import os
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session
 from mysql.connector import IntegrityError
@@ -7,7 +8,7 @@ from conexao import conectar, inicializar_banco
 
 
 app = Flask(__name__)
-app.secret_key = "corestudy_secret_key"
+app.secret_key = os.getenv("SECRET_KEY", "corestudy_secret_key")
 
 inicializar_banco()
 
@@ -3183,4 +3184,6 @@ def excluir_perfil():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    porta = int(os.getenv("PORT", "5000"))
+    debug = os.getenv("FLASK_DEBUG", "1") == "1"
+    app.run(host="0.0.0.0", port=porta, debug=debug)

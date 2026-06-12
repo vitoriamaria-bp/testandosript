@@ -1,11 +1,14 @@
+import os
+
 import mysql.connector
 from mysql.connector import Error
 
 
-HOST = "localhost"
-USUARIO = "root"
-SENHA = "root"
-BANCO = "db_core_study1"
+HOST = os.getenv("DB_HOST", "localhost")
+USUARIO = os.getenv("DB_USER", "root")
+SENHA = os.getenv("DB_PASSWORD", "root")
+BANCO = os.getenv("DB_NAME", "db_core_study1")
+PORTA = int(os.getenv("DB_PORT", "3306"))
 URL_VIDEO_PADRAO = "https://www.youtube.com/watch?v=4p7axLXXBGU"
 URL_MATERIAL_IA = "https://drive.google.com/drive/folders/1dlcTYJG3nuSXJ0cOhn2qeVDTmUf5zv4I?usp=sharing"
 URLS_VIDEO_POR_CURSO = {
@@ -442,6 +445,7 @@ def conectar(usar_banco=True):
     try:
         config = {
             "host": HOST,
+            "port": PORTA,
             "user": USUARIO,
             "password": SENHA,
         }
